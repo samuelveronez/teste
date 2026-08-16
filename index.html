@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>RIO BRAVO — River Raid</title>
+<style>
+  :root{
+    --river:#1c4d5c;
+    --river-dark:#123640;
+    --bank:#274d1f;
+    --bank-dark:#1a3714;
+    --sand:#c9a15a;
+    --hud-bg:#0a1410;
+    --amber:#ffb020;
+    --red:#ff4d4d;
+    --green:#5ee06a;
+    --cream:#f4ecd8;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; width:100%; height:100%;
+    background:#07100d;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Courier New', monospace;
+    overflow:hidden;
+    overscroll-behavior:none;
+    touch-action:none;
+    -webkit-user-select:none; user-select:none;
+  }
+  #wrap{
+    position:relative;
+    width:min(480px, 100vw, calc(100vh * 480 / 640));
+    aspect-ratio:480/640;
+    max-height:100vh;
+    box-shadow:0 0 0 3px #000, 0 0 0 6px var(--amber), 0 20px 60px rgba(0,0,0,.7);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  canvas{
+    display:block; width:100%; height:100%;
+    background:var(--bank-dark); image-rendering:pixelated;
+  }
+
+  #hud{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:1.5vw 2.5vw;
+    background:linear-gradient(180deg, rgba(10,20,16,.92), rgba(10,20,16,0));
+    color:var(--cream);
+    font-size:clamp(9px, 3vw, 14px); letter-spacing:.5px;
+    pointer-events:none;
+    text-transform:uppercase;
+    gap:6px;
+  }
+  #hud .stat{ display:flex; gap:5px; align-items:center; white-space:nowrap; }
+  #hud .label{ color:var(--amber); font-weight:bold; }
+  #fuelBarOuter{
+    width:clamp(50px, 18vw, 110px); height:10px; border:2px solid var(--cream); border-radius:2px;
+    background:#0a1410; overflow:hidden; flex:0 0 auto;
+  }
+  #fuelBarInner{
+    height:100%; width:100%;
+    background:linear-gradient(90deg, var(--red), var(--amber), var(--green));
+    transition:width .15s linear;
+  }
+
+  #overlay{
+    position:absolute; inset:0;
+    background:rgba(5,10,8,.86);
+    color:var(--cream);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; gap:14px; padding:20px;
+  }
+  #overlay h1{
+    margin:0; font-size:34px; color:var(--amber);
+    letter-spacing:4px; text-shadow:3px 3px 0 #000;
+  }
+  #overlay .sub{ color:var(--green); font-size:13px; letter-spacing:2px; }
+  #overlay p{ margin:2px 0; font-size:13px; line-height:1.7; max-width:340px; }
+  #overlay .key{
+    display:inline-block; border:2px solid var(--cream); border-radius:3px;
+    padding:1px 7px; margin:0 2px; font-weight:bold;
+  }
+  #overlay button{
+    margin-top:10px; padding:10px 26px;
+    background:var(--amber); color:#1a1200; border:none; border-radius:3px;
+    font-family:inherit; font-weight:bold; letter-spacing:2px; font-size:14px;
+    cursor:pointer; text-transform:uppercase;
+  }
+  #overlay button:active{ transform:translateY(1px); }
+  #overlay .score{ font-size:20px; color:var(--green); margin-top:4px; }
+  #hidden{ display:none; }
+
+  #touch{
+    position:absolute; bottom:10px; left:0; right:0;
+    display:none; justify-content:space-between; padding:0 12px;
+    pointer-events:none;
+  }
+  #touch button{
+    pointer-events:all;
+    width:56px; height:56px; border-radius:50%;
+    border:2px solid var(--cream); background:rgba(20,30,25,.6); color:var(--cream);
+    font-size:20px; opacity:.85;
+  }
+  @media (pointer:coarse){ #touch{ display:flex; } }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="480" height="640"></canvas>
+
+  <div id="hud">
+    <div class="stat"><span class="label">Pontos</span><span id="scoreEl">0</span></div>
+    <div class="stat"><span class="label">Fuel</span><div id="fuelBarOuter"><div id="fuelBarInner"></div></div></div>
+    <div class="stat"><span class="label">Vidas</span><span id="livesEl">3</span></div>
+  </div>
+
+  <div id="overlay">
+    <div class="sub">— RIO BRAVO —</div>
+    <h1>RIVER RAID</h1>
+    <p>Pilote seu caça pelo rio. Desvie das margens, atire nos inimigos e reabasteça sobrevoando os tanques amarelos <b>F</b> antes que o combustível acabe.</p>
+    <p><span class="key">←</span><span class="key">→</span> mover · <span class="key">↑</span><span class="key">↓</span> acelerar/frear · <span class="key">ESPAÇO</span> atirar</p>
+    <div id="finalScoreWrap" class="hidden" style="display:none">
+      <div class="score">Pontuação final: <span id="finalScore">0</span></div>
+    </div>
+    <button id="startBtn">Iniciar missão</button>
+  </div>
+
+  <div id="touch">
+    <div style="display:flex; gap:10px;">
+      <button id="btnLeft">◀</button>
+      <button id="btnRight">▶</button>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button id="btnSlow">▽</button>
+      <button id="btnFast">△</button>
+      <button id="btnFire">●</button>
+    </div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('error', function(e){
+  var el = document.getElementById('crashMsg');
+  if (el){
+    el.style.display = 'block';
+    el.textContent = 'Erro: ' + (e.message || 'falha desconhecida') +
+      (e.lineno ? ' (linha ' + e.lineno + ')' : '');
+  }
+});
+</script>
+<div id="crashMsg" style="position:absolute;top:0;left:0;right:0;background:#500;color:#fff;font:12px monospace;padding:6px 10px;z-index:99;display:none;"></div>
+<script>
+(() => {
+try {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const scoreEl = document.getElementById('scoreEl');
+  const livesEl = document.getElementById('livesEl');
+  const fuelBar = document.getElementById('fuelBarInner');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const finalScoreWrap = document.getElementById('finalScoreWrap');
+  const finalScoreEl = document.getElementById('finalScore');
+
+  // ---------- River geometry ----------
+  // The river is generated as a list of segments (y positions) each with a
+  // left bank x and right bank x. We scroll this upward over time.
+  const SEG_H = 8;
+  const segCount = Math.ceil(H / SEG_H) + 4;
+  let segments = []; // {left, right}
+  let riverCenter = W/2;
+  let riverWidth = 240;
+  let seedT = 0;
+
+  function resetRiver(){
+    segments = [];
+    riverCenter = W/2;
+    riverWidth = 260;
+    for (let i=0;i<segCount;i++){
+      segments.push({left: riverCenter - riverWidth/2, right: riverCenter + riverWidth/2});
+    }
+  }
+
+  function pushSegment(){
+    // meander center, breathe width
+    seedT += 0.02 + rand()*0.01;
+    riverCenter += Math.sin(seedT*1.7) * 3.2 + (rand()-0.5)*2;
+    riverCenter = Math.max(90, Math.min(W-90, riverCenter));
+    riverWidth += Math.sin(seedT*0.6) * 2.4;
+    riverWidth = Math.max(120, Math.min(340, riverWidth));
+    // occasional narrow chokepoint
+    let w = riverWidth;
+    segments.push({left: riverCenter - w/2, right: riverCenter + w/2});
+    segments.shift();
+  }
+
+  // deterministic-ish PRNG so gameplay feels tuned, not chaotic
+  let rngState = 42;
+  function rand(){
+    rngState = (rngState * 1103515245 + 12345) & 0x7fffffff;
+    return (rngState % 10000) / 10000;
+  }
+
+  // ---------- Entities ----------
+  let player, bullets, enemies, fuels, particles, scrollY, spawnTimer, fuelSpawnTimer;
+  let score, lives, fuel, gameOver, running, speedMul, distanceForSpawnScale;
+  const MAXFUEL = 100;
+
+  function resetGame(){
+    resetRiver();
+    for (let i=0;i<H/SEG_H+40;i++) pushSegment();
+    player = { x: W/2, y: H-90, w: 22, h: 26, vx:0, cooldown:0, alive:true, blinkT:0 };
+    bullets = [];
+    enemies = [];
+    fuels = [];
+    particles = [];
+    scrollY = 0;
+    spawnTimer = 60;
+    fuelSpawnTimer = 220;
+    score = 0;
+    lives = 3;
+    fuel = MAXFUEL;
+    gameOver = false;
+    running = true;
+    speedMul = 1;
+    updateHUD();
+  }
+
+  function updateHUD(){
+    scoreEl.textContent = Math.floor(score);
+    livesEl.textContent = lives;
+    fuelBar.style.width = Math.max(0, fuel) + '%';
+  }
+
+  // ---------- Input ----------
+  const keys = {};
+  window.addEventListener('keydown', e=>{
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault();
+    keys[e.code] = true;
+  });
+  window.addEventListener('keyup', e=> keys[e.code] = false);
+
+  function bindHold(id, code){
+    const el = document.getElementById(id);
+    if (!el) return;
+    const on = (e)=>{ if (e.cancelable) e.preventDefault(); keys[code]=true; };
+    const off = (e)=>{ if (e.cancelable) e.preventDefault(); keys[code]=false; };
+    el.addEventListener('touchstart', on, {passive:false});
+    el.addEventListener('touchend', off, {passive:false});
+    el.addEventListener('touchcancel', off, {passive:false});
+    el.addEventListener('mousedown', on);
+    el.addEventListener('mouseup', off);
+    el.addEventListener('mouseleave', off);
+  }
+  bindHold('btnLeft','ArrowLeft');
+  bindHold('btnRight','ArrowRight');
+  bindHold('btnSlow','ArrowDown');
+  bindHold('btnFast','ArrowUp');
+  bindHold('btnFire','Space');
+
+  // ---------- River helpers ----------
+  function bankAt(yPixelFromTop){
+    // yPixelFromTop is canvas y (0 top). segments[0] corresponds to canvas y=0 (with sub-pixel offset scrollY)
+    const idx = Math.floor((yPixelFromTop + (scrollY % SEG_H)) / SEG_H);
+    const seg = segments[Math.max(0, Math.min(segments.length-1, idx))];
+    return seg || {left:0,right:W};
+  }
+
+  // ---------- Spawning ----------
+  function spawnEnemy(){
+    const seg = bankAt(-20);
+    const margin = 20;
+    const x = seg.left + margin + rand()*(seg.right-seg.left-margin*2);
+    const type = rand() < 0.55 ? 'boat' : 'copter';
+    enemies.push({ x, y:-20, w:26, h:16, type, dir: rand()<0.5?-1:1, t:0, alive:true, vy: type==='copter'?1.6:1.2 });
+  }
+  function spawnFuel(){
+    const seg = bankAt(-20);
+    const margin = 22;
+    const x = seg.left + margin + rand()*(seg.right-seg.left-margin*2);
+    fuels.push({ x, y:-20, w:20, h:22, alive:true });
+  }
+
+  // ---------- Update ----------
+  function rectsOverlap(a,b){
+    return Math.abs(a.x-b.x) < (a.w+b.w)/2 && Math.abs(a.y-b.y) < (a.h+b.h)/2;
+  }
+
+  function explode(x,y,color){
+    for (let i=0;i<14;i++){
+      particles.push({x,y, vx:(rand()-0.5)*4, vy:(rand()-0.5)*4, life:24, color});
+    }
+  }
+
+  function update(dt){
+    if (!running) return;
+
+    // --- controls ---
+    const accel = keys['ArrowUp'] ? 1.9 : (keys['ArrowDown'] ? 0.5 : 1.15);
+    speedMul += (accel - speedMul) * 0.08;
+    const baseScroll = 2.4 * speedMul;
+
+    player.vx = 0;
+    if (keys['ArrowLeft']) player.vx = -3.4;
+    if (keys['ArrowRight']) player.vx = 3.4;
+    player.x += player.vx;
+
+    // fire
+    player.cooldown -= dt;
+    if (keys['Space'] && player.cooldown <= 0 && player.alive){
+      bullets.push({x:player.x, y:player.y-16, w:3, h:10});
+      player.cooldown = 9;
+    }
+
+    // scroll river
+    let toScroll = baseScroll;
+    while (toScroll > 0){
+      const step = Math.min(SEG_H, toScroll);
+      scrollY += step;
+      toScroll -= step;
+      if (scrollY >= SEG_H){ scrollY -= SEG_H; pushSegment(); }
+    }
+
+    // fuel consumption
+    fuel -= 0.045 * speedMul;
+    if (fuel <= 0){ fuel = 0; killPlayer(); }
+
+    // bank collision
+    const seg = bankAt(player.y);
+    if (player.alive && (player.x - player.w/2 < seg.left || player.x + player.w/2 > seg.right)){
+      killPlayer();
+    }
+    player.x = Math.max(10, Math.min(W-10, player.x));
+
+    // spawn logic
+    spawnTimer -= dt;
+    if (spawnTimer <= 0){
+      spawnEnemy();
+      spawnTimer = 55 + rand()*45 - Math.min(30, score/80);
+    }
+    fuelSpawnTimer -= dt;
+    if (fuelSpawnTimer <= 0){
+      spawnFuel();
+      fuelSpawnTimer = 380 + rand()*160;
+    }
+
+    // move bullets
+    bullets.forEach(b=> b.y -= 8);
+    bullets = bullets.filter(b=> b.y > -20);
+
+    // move enemies
+    enemies.forEach(en=>{
+      en.y += baseScroll * (en.type==='copter'?0.55:0.75);
+      en.t += dt;
+      if (en.type==='copter') en.x += Math.sin(en.t*0.05) * 1.1 * en.dir;
+    });
+    enemies = enemies.filter(en=> en.alive && en.y < H+30);
+
+    // move fuels
+    fuels.forEach(f=> f.y += baseScroll*0.85);
+    fuels = fuels.filter(f=> f.alive && f.y < H+30);
+
+    // particles
+    particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.life--; });
+    particles = particles.filter(p=> p.life>0);
+
+    // collisions: bullets vs enemies
+    bullets.forEach(b=>{
+      enemies.forEach(en=>{
+        if (en.alive && rectsOverlap(b,en)){
+          en.alive = false; b.y = -999;
+          score += en.type==='copter' ? 150 : 100;
+          explode(en.x, en.y, '#ffcf5c');
+        }
+      });
+    });
+    bullets = bullets.filter(b=> b.y > -900);
+
+    // collisions: player vs enemies
+    if (player.alive){
+      enemies.forEach(en=>{
+        if (en.alive && rectsOverlap(player, en)){
+          en.alive = false;
+          explode(en.x, en.y, '#ff7a4d');
+          killPlayer();
+        }
+      });
+      // player vs fuel
+      fuels.forEach(f=>{
+        if (f.alive && rectsOverlap(player, f)){
+          f.alive = false;
+          fuel = Math.min(MAXFUEL, fuel + 42);
+          score += 10;
+        }
+      });
+    }
+
+    // score by distance
+    score += 0.05 * speedMul;
+
+    updateHUD();
+  }
+
+  function killPlayer(){
+    if (!player.alive) return;
+    player.alive = false;
+    explode(player.x, player.y, '#7fe0ff');
+    lives -= 1;
+    updateHUD();
+    setTimeout(()=>{
+      if (lives > 0){
+        player.alive = true;
+        player.x = riverCenter;
+        fuel = Math.max(fuel, 35);
+      } else {
+        endGame();
+      }
+    }, 800);
+  }
+
+  function endGame(){
+    running = false;
+    gameOver = true;
+    finalScoreEl.textContent = Math.floor(score);
+    finalScoreWrap.style.display = 'block';
+    overlay.style.display = 'flex';
+    startBtn.textContent = 'Jogar novamente';
+  }
+
+  // ---------- Draw ----------
+  function drawRiver(){
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bank-dark');
+    ctx.fillRect(0,0,W,H);
+
+    for (let i=0;i<segments.length;i++){
+      const y = i*SEG_H - scrollY;
+      if (y < -SEG_H || y > H) continue;
+      const seg = segments[i];
+      // banks
+      ctx.fillStyle = '#264d20';
+      ctx.fillRect(0, y, seg.left, SEG_H+1);
+      ctx.fillRect(seg.right, y, W-seg.right, SEG_H+1);
+      // bank edge highlight (sandy)
+      ctx.fillStyle = '#8a6a3a';
+      ctx.fillRect(seg.left-3, y, 3, SEG_H+1);
+      ctx.fillRect(seg.right, y, 3, SEG_H+1);
+      // river
+      ctx.fillStyle = ( (i + Math.floor(scrollY/2)) % 14 < 7) ? '#1c4d5c' : '#1a4652';
+      ctx.fillRect(seg.left, y, seg.right-seg.left, SEG_H+1);
+    }
+  }
+
+  function drawPlayer(){
+    if (!player.alive){
+      player.blinkT += 1;
+      if (Math.floor(player.blinkT/4) % 2 === 0) return;
+    }
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    ctx.fillStyle = '#e8e8e8';
+    // simple jet silhouette
+    ctx.beginPath();
+    ctx.moveTo(0,-14);
+    ctx.lineTo(9,10);
+    ctx.lineTo(3,7);
+    ctx.lineTo(0,12);
+    ctx.lineTo(-3,7);
+    ctx.lineTo(-9,10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#5ee0ff';
+    ctx.fillRect(-2,-8,4,6);
+    ctx.fillStyle = '#ff8c3c';
+    ctx.fillRect(-3,10,6,4+ (speedMul>1.3?4:0));
+    ctx.restore();
+  }
+
+  function drawEnemies(){
+    enemies.forEach(en=>{
+      ctx.save();
+      ctx.translate(en.x, en.y);
+      if (en.type==='boat'){
+        ctx.fillStyle = '#c94b3d';
+        ctx.fillRect(-13,-6,26,12);
+        ctx.fillStyle = '#7a2a20';
+        ctx.fillRect(-13,-6,26,4);
+      } else {
+        ctx.fillStyle = '#8f6fd1';
+        ctx.fillRect(-11,-5,22,10);
+        ctx.strokeStyle = '#c9b8ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const spin = (en.t*0.9)%Math.PI;
+        ctx.moveTo(-16+Math.cos(spin)*8, -9);
+        ctx.lineTo(16-Math.cos(spin)*8, -9);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+  }
+
+  function drawFuels(){
+    fuels.forEach(f=>{
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      ctx.fillStyle = '#ffb020';
+      ctx.fillRect(-10,-11,20,22);
+      ctx.fillStyle = '#3a2a00';
+      ctx.font = 'bold 12px monospace';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('F', 0, 1);
+      ctx.restore();
+    });
+  }
+
+  function drawBullets(){
+    ctx.fillStyle = '#fff2b0';
+    bullets.forEach(b=> ctx.fillRect(b.x-b.w/2, b.y-b.h/2, b.w, b.h));
+  }
+
+  function drawParticles(){
+    particles.forEach(p=>{
+      ctx.globalAlpha = Math.max(0, p.life/24);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x-2, p.y-2, 4, 4);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function draw(){
+    drawRiver();
+    drawFuels();
+    drawEnemies();
+    drawBullets();
+    drawPlayer();
+    drawParticles();
+  }
+
+  // ---------- Loop ----------
+  let last = 0;
+  function loop(ts){
+    const dt = 1; // fixed step, frame-based tuning
+    if (running) update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', ()=>{
+    resetGame();
+    overlay.style.display = 'none';
+  });
+
+  resetGame();
+  running = false; // wait for player to press "Iniciar missão"
+  draw();
+  requestAnimationFrame(loop);
+
+} catch (err) {
+  var el = document.getElementById('crashMsg');
+  if (el){ el.style.display = 'block'; el.textContent = 'Erro ao iniciar: ' + err.message; }
+}
+})();
+</script>
+</body>
+</html>
