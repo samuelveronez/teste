@@ -98,6 +98,7 @@ details summary{cursor:pointer;font-weight:600}
     <button class="p" id="json" title="Salva premissas + processos em um arquivo">Exportar JSON</button>
     <button id="load" title="Carrega um arquivo exportado">Importar JSON</button>
     <button id="xlsx" title="Planilha com fórmulas para auditar no Excel">Exportar XLSX</button>
+    <button id="pptx" title="Apresentação executiva para a diretoria">Exportar PPTX (diretoria)</button>
     <button id="print">Imprimir / PDF</button>
     <button id="exemplo">Restaurar exemplo</button><button class="x" id="limpar">Zerar tudo</button>
     <input type="file" id="file" accept=".json" hidden>
@@ -303,7 +304,7 @@ $('#limpar').onclick=()=>{if(confirm('Zerar todos os processos?')){S.procs=[];sa
 
 /* ---------- XLSX (gerador mínimo, sem bibliotecas) ---------- */
 const CRC=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return b=>{let c=~0;for(const x of b)c=t[(c^x)&255]^(c>>>8);return ~c>>>0}})();
-function zip(files){
+function zip(files,mime){
  const enc=new TextEncoder(),parts=[],cen=[];let off=0;
  const u16=v=>[v&255,v>>8&255],u32=v=>[v&255,v>>8&255,v>>16&255,v>>24&255];
  for(const[name,txt]of Object.entries(files)){
@@ -314,7 +315,7 @@ function zip(files){
   off+=h.length+nb.length+d.length;
  }
  const csz=cen.reduce((a,b)=>a+b.length,0),n=Object.keys(files).length;
- return new Blob([...parts,...cen,new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(n),...u16(n),...u32(csz),...u32(off),0,0])],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ return new Blob([...parts,...cen,new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(n),...u16(n),...u32(csz),...u32(off),0,0])],{type:mime||'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
 }
 const colL=i=>String.fromCharCode(65+i);
 function sheetXml(rows){
@@ -352,6 +353,96 @@ function exportXlsx(){
  const a=document.createElement('a');a.href=URL.createObjectURL(zip(files));a.download='ganhos-'+new Date().toISOString().slice(0,10)+'.xlsx';a.click();URL.revokeObjectURL(a.href);
 }
 $('#xlsx').onclick=exportXlsx;
+
+/* ---------- PPTX para diretoria (gerador mínimo) ---------- */
+function exportPptx(){
+ const R=calc(S),g=S.g,E=v=>Math.round(v*9525);
+ const X=v=>String(v).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+ const NS='xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
+ const XH='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+ const C={ink:'1C2230',mut:'667085',pri:'2457D6',ok:'12805C',okbg:'E4F5EE',bg:'F5F6F8',line:'E3E6EC',navy:'1B2A4A',c2:'12A37F',c3:'E08A1E',bad:'B42318',white:'FFFFFF'};
+ let nid=2;
+ const runs=t=>t.map(r=>`<a:p><a:pPr algn="${r.al||'l'}"/><a:r><a:rPr lang="pt-BR" sz="${(r.sz||16)*100}" b="${r.b?1:0}"><a:solidFill><a:srgbClr val="${r.c||C.ink}"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>${X(r.t)}</a:t></a:r></a:p>`).join('');
+ const sh=o=>{const id=nid++;
+  const fill=o.fill?`<a:solidFill><a:srgbClr val="${o.fill}"/></a:solidFill>`:'<a:noFill/>';
+  const ln=o.line?`<a:ln w="12700"><a:solidFill><a:srgbClr val="${o.line}"/></a:solidFill></a:ln>`:'<a:ln><a:noFill/></a:ln>';
+  const geom=o.path?`<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="${E(o.w)}" h="${E(o.h)}" fill="none">${o.path.map((q,i)=>`<a:${i?'lnTo':'moveTo'}><a:pt x="${E(q[0])}" y="${E(q[1])}"/></a:${i?'lnTo':'moveTo'}>`).join('')}</a:path></a:pathLst></a:custGeom>`:`<a:prstGeom prst="${o.geom||'rect'}"><a:avLst/></a:prstGeom>`;
+  const lnp=o.path?`<a:ln w="38100"><a:solidFill><a:srgbClr val="${o.stroke||C.pri}"/></a:solidFill></a:ln>`:ln;
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="Forma ${id}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${E(o.x)}" y="${E(o.y)}"/><a:ext cx="${E(o.w)}" cy="${E(o.h)}"/></a:xfrm>${geom}${o.path?'<a:noFill/>':fill}${lnp}</p:spPr><p:txBody><a:bodyPr wrap="square" lIns="${o.fill?91440:0}" tIns="45720" rIns="${o.fill?91440:0}" bIns="45720" anchor="${o.anchor||'t'}"><a:normAutofit/></a:bodyPr><a:lstStyle/>${o.text?runs(o.text):'<a:p><a:endParaRPr lang="pt-BR"/></a:p>'}</p:txBody></p:sp>`};
+ const txt=(x,y,w,h,t,o={})=>sh({x,y,w,h,text:t,...o});
+ const mk=(n,body,bg)=>`${XH}<p:sld ${NS}><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="${bg||C.white}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${body}</p:spTree></p:cSld></p:sld>`;
+ const frame=(n,title)=>{nid=2;return txt(60,32,1160,90,[{t:title,sz:28,b:1}],{anchor:'ctr'})+sh({x:60,y:124,w:80,h:4,fill:C.pri})};
+ const foot=n=>txt(60,676,1000,28,[{t:g.nome,sz:11,c:C.mut}])+txt(1120,676,100,28,[{t:String(n),sz:11,c:C.mut,al:'r'}]);
+ const hbars=(x,y,w,items,fmt,rowH=44)=>items.map((it,i)=>{
+  const mx=Math.max(1,...items.map(q=>Math.abs(q.v))),bw=Math.max(2,Math.abs(it.v)/mx*(w-330)),yy=y+i*rowH;
+  return txt(x,yy,200,rowH-8,[{t:it.l,sz:14}],{anchor:'ctr'})+sh({x:x+205,y:yy+6,w:bw,h:rowH-20,fill:it.c})+txt(x+205+bw+8,yy,130,rowH-8,[{t:fmt(it.v),sz:14,b:1}],{anchor:'ctr'});
+ }).join('');
+ const slides=[];
+ const anual=R.mensal*12,pbT=R.payback!==null?`${R.payback} meses`:`> ${R.H} meses`;
+ /* 1 capa */
+ nid=2;slides.push(mk(1,sh({x:0,y:0,w:1280,h:720,fill:C.navy})+sh({x:80,y:250,w:100,h:6,fill:C.c2})+
+  txt(80,280,1120,120,[{t:g.nome,sz:44,b:1,c:C.white}],{anchor:'t'})+
+  txt(80,410,1120,100,[{t:`Ganhos esperados vs. sistema legado — ${brl(anual)} por ano, payback em ${pbT}`,sz:22,c:'C9D6F5'}])+
+  txt(80,640,1120,30,[{t:'Apresentação à Diretoria · '+new Date().toLocaleDateString('pt-BR'),sz:14,c:'9FB3E6'}]),C.navy));
+ /* 2 resumo */
+ const k=[[brl(anual),'Ganho líquido anual (regime)'],[num(R.adj,0)+' h/mês',`Horas liberadas · ${num(R.fte,1)} FTE equivalentes`],[pbT,'Payback sobre '+brl(R.inv)],[R.roi!==null?num(R.roi,0)+'%':'—',`ROI em ${R.H} meses`]];
+ slides.push(mk(2,frame(2,`O novo sistema gera ${brl(anual)} por ano e se paga em ${pbT}`)+
+  k.map((q,i)=>sh({x:60+i*295,y:160,w:275,h:150,fill:i===0?C.okbg:C.bg,geom:'roundRect'})+txt(75+i*295,172,245,70,[{t:q[0],sz:30,b:1,c:i===0?C.ok:C.ink}],{anchor:'ctr'})+txt(75+i*295,246,245,56,[{t:q[1],sz:13,c:C.mut}])).join('')+
+  txt(60,350,1160,300,[
+   {t:`• Esforço da operação cai ${num(R.reducao,0)}%: de ${num(R.H0,0)} h para ${num(R.H3,0)} h por mês (valor bruto, antes dos fatores de confiança).`,sz:18},
+   {t:'',sz:8},
+   {t:`• O valor apresentado já considera ${g.adocao}% de realização do ganho e fator de confiança por fonte de medição.`,sz:18},
+   {t:'',sz:8},
+   {t:`• Diferença de custo de sistema (legado vs. novo): ${brl(R.sysDelta)}/mês. Investimento único: ${brl(R.inv)}.`,sz:18},
+   {t:'',sz:8},
+   {t:`• Resultado acumulado em ${R.H} meses: ${brl(R.cum)}.`,sz:18,b:1}])+foot(2)));
+ /* 3 onde está o ganho */
+ const A=R.alav,al=[{l:'Automação (sem toque)',v:A.auto,c:C.pri},{l:'Menor tempo por item',v:A.tempo,c:C.c2},{l:'Menos retrabalho',v:A.ret,c:C.c3},{l:'Δ custo de sistema',v:R.sysDelta,c:R.sysDelta<0?C.bad:C.mut}];
+ const topA=[...al.slice(0,3)].sort((a,b)=>b.v-a.v)[0],totA=A.auto+A.tempo+A.ret||1;
+ const pr=R.procs.map(x=>({l:x.p.nome,v:x.rs,c:C.pri})).sort((a,b)=>b.v-a.v).slice(0,7);
+ slides.push(mk(3,frame(3,`${topA.l} concentra ${num(topA.v/totA*100,0)}% do ganho de mão de obra`)+
+  txt(60,150,560,28,[{t:'Por alavanca (R$/mês)',sz:16,b:1,c:C.mut}])+hbars(60,185,560,al,brl)+
+  txt(660,150,560,28,[{t:'Por processo (R$/mês)',sz:16,b:1,c:C.mut}])+hbars(660,185,560,pr,brl)+
+  txt(60,520,1160,120,[{t:'Cada real de ganho vem de uma causa mensurável: mais itens resolvidos sem intervenção humana, menos minutos por item ou menos retrabalho. Se nenhuma dessas alavancas se mover, o ganho não existe.',sz:15,c:C.mut}])+foot(3)));
+ /* 4 evidências */
+ const estPct=R.baseEst*100;
+ const hdr=['Processo','Como foi medido','Bruto (h)','Defensável (h)','R$/mês'],cx=[60,330,720,860,1010],cw=[260,380,130,140,140];
+ const tr=R.procs.slice(0,8).map((x,i)=>{const y=210+i*42;return [x.p.nome,FONTES[x.p.fonte].n+(x.p.amostra?' — '+x.p.amostra:''),num(x.bruto,0),num(x.adj,0),brl(x.rs)].map((c,j)=>txt(cx[j],y,cw[j],40,[{t:c,sz:j===1?12:14,al:j>1?'r':'l'}],{anchor:'ctr'})).join('')+sh({x:60,y:y+40,w:1090,h:1,fill:C.line})}).join('');
+ slides.push(mk(4,frame(4,estPct>40?`${num(estPct,0)}% do ganho ainda depende de estimativas — plano de validação necessário`:'O ganho está sustentado por medições, não por estimativas')+
+  hdr.map((h,j)=>txt(cx[j],170,cw[j],36,[{t:h,sz:13,b:1,c:C.mut,al:j>1?'r':'l'}],{anchor:'ctr'})).join('')+sh({x:60,y:206,w:1090,h:2,fill:C.ink})+tr+
+  txt(60,600,1160,60,[{t:`Ganho bruto ${num(R.bruto,0)} h → defensável ${num(R.adj,0)} h/mês após fator de confiança (estimativa 60%, amostra 85%, logs 100%) e ${g.adocao}% de realização.`,sz:14,c:C.mut}])+foot(4)));
+ /* 5 curva */
+ const cx0=120,cy0=170,cw0=1060,ch0=410,ys=R.pts.map(q=>q.cum),mn=Math.min(0,...ys),mx=Math.max(0,...ys),rg=(mx-mn)||1,mM=R.pts[R.pts.length-1].m;
+ const px=m=>m/mM*cw0,py=v=>(1-(v-mn)/rg)*ch0;
+ const grid=[mn,mn+rg/2,mx].map(v=>sh({x:cx0,y:cy0+py(v),w:cw0,h:1,fill:C.line})+txt(10,cy0+py(v)-14,105,28,[{t:brl(v),sz:11,c:C.mut,al:'r'}],{anchor:'ctr'})).join('');
+ const pbm=R.payback!==null?sh({x:cx0+px(R.payback)-8,y:cy0+py(0)-8,w:16,h:16,fill:C.ok,geom:'ellipse'})+txt(cx0+px(R.payback)-100,cy0+py(0)-48,200,30,[{t:'Payback: mês '+R.payback,sz:14,b:1,c:C.ok,al:'ctr'}]):'';
+ slides.push(mk(5,frame(5,R.payback!==null?`Investimento de ${brl(R.inv)} recuperado no mês ${R.payback}`:`Com as premissas atuais, o investimento não se paga em ${R.H} meses`)+grid+
+  sh({x:cx0,y:cy0+py(0),w:cw0,h:2,fill:C.mut})+
+  sh({x:cx0,y:cy0,w:cw0,h:ch0,path:R.pts.map(q=>[px(q.m),py(q.cum)])})+pbm+
+  [0,Math.round(mM/2),mM].map(m=>txt(cx0+px(m)-50,cy0+ch0+6,100,26,[{t:'mês '+m,sz:12,c:C.mut,al:'ctr'}])).join('')+
+  txt(60,620,1160,40,[{t:`Rampa de adoção de ${g.rampa} meses. Resultado acumulado em ${R.H} meses: ${brl(R.cum)}.`,sz:14,c:C.mut}])+foot(5)));
+ /* 6 premissas e próximos passos */
+ const bl=(a,sz=15)=>a.map(t=>({t:'• '+t,sz})).flatMap(q=>[q,{t:'',sz:6}]);
+ slides.push(mk(6,frame(6,'Premissas, riscos e como vamos comprovar o ganho')+
+  txt(60,150,540,30,[{t:'Premissas-chave',sz:18,b:1,c:C.pri}])+
+  txt(60,185,540,440,bl([`Custo/hora da equipe: ${brl(+g.custoHora)}`,`Realização do ganho: ${g.adocao}% (capacidade → benefício)`,`Adoção plena em ${g.rampa} meses`,`Custo mensal do sistema: ${brl(+g.sysLeg)} (legado) → ${brl(+g.sysNew)} (novo)`,`Horizonte da análise: ${g.horizonte} meses`,'Horas liberadas só viram caixa com realocação, redução de extras/terceiros ou absorção de volume.']))+
+  txt(660,150,560,30,[{t:'Próximos passos',sz:18,b:1,c:C.pri}])+
+  txt(660,185,560,440,bl(['Medir por amostra/log os processos hoje baseados em estimativa.','Acompanhar 30/60/90 dias após o go-live e trocar premissas "novo" por valores reais.','Definir o destino das horas liberadas (realocação, absorção de volume ou redução de custo).','Revisar este caso de negócio com a Diretoria no mês '+Math.min(R.H,Math.max(3,g.rampa+3))+'.']))+foot(6)));
+ const n=slides.length;
+ const f={
+  '[Content_Types].xml':`${XH}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>${slides.map((_,i)=>`<Override PartName="/ppt/slides/slide${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join('')}</Types>`,
+  '_rels/.rels':`${XH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/></Relationships>`,
+  'ppt/presentation.xml':`${XH}<p:presentation ${NS}><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>${slides.map((_,i)=>`<p:sldId id="${256+i}" r:id="rId${i+2}"/>`).join('')}</p:sldIdLst><p:sldSz cx="12192000" cy="6858000"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`,
+  'ppt/_rels/presentation.xml.rels':`${XH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>${slides.map((_,i)=>`<Relationship Id="rId${i+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i+1}.xml"/>`).join('')}</Relationships>`,
+  'ppt/slideMasters/slideMaster1.xml':`${XH}<p:sldMaster ${NS}><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst></p:sldMaster>`,
+  'ppt/slideMasters/_rels/slideMaster1.xml.rels':`${XH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>`,
+  'ppt/slideLayouts/slideLayout1.xml':`${XH}<p:sldLayout ${NS} type="blank"><p:cSld name="Em branco"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld></p:sldLayout>`,
+  'ppt/slideLayouts/_rels/slideLayout1.xml.rels':`${XH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>`,
+  'ppt/theme/theme1.xml':`${XH}<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Ganhos"><a:themeElements><a:clrScheme name="G"><a:dk1><a:srgbClr val="1C2230"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="1B2A4A"/></a:dk2><a:lt2><a:srgbClr val="F5F6F8"/></a:lt2><a:accent1><a:srgbClr val="2457D6"/></a:accent1><a:accent2><a:srgbClr val="12A37F"/></a:accent2><a:accent3><a:srgbClr val="E08A1E"/></a:accent3><a:accent4><a:srgbClr val="B42318"/></a:accent4><a:accent5><a:srgbClr val="667085"/></a:accent5><a:accent6><a:srgbClr val="6F93F5"/></a:accent6><a:hlink><a:srgbClr val="2457D6"/></a:hlink><a:folHlink><a:srgbClr val="667085"/></a:folHlink></a:clrScheme><a:fontScheme name="G"><a:majorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="G"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`};
+ slides.forEach((x,i)=>{f[`ppt/slides/slide${i+1}.xml`]=x;f[`ppt/slides/_rels/slide${i+1}.xml.rels`]=`${XH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>`});
+ const a=document.createElement('a');a.href=URL.createObjectURL(zip(f,'application/vnd.openxmlformats-officedocument.presentationml.presentation'));a.download='apresentacao-diretoria-'+new Date().toISOString().slice(0,10)+'.pptx';a.click();URL.revokeObjectURL(a.href);
+}
+$('#pptx').onclick=exportPptx;
 function init(){renderGlobais();renderProcs();renderRes()}
 init();
 </script>
