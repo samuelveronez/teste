@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de Ganhos Backoffice</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#1c2230;--mut:#667085;--line:#e3e6ec;--pri:#2457d6;--pri2:#e8eefc;--ok:#12805c;--okbg:#e4f5ee;--warn:#b25e09;--warnbg:#fdf1de;--bad:#b42318;--c1:#2457d6;--c2:#12a37f;--c3:#e08a1e}
+@media (prefers-color-scheme:dark){:root{--bg:#10141c;--card:#181e2a;--ink:#e8ebf2;--mut:#9aa4b5;--line:#2a3243;--pri:#6f93f5;--pri2:#1f2a47;--ok:#4fd1a1;--okbg:#14352b;--warn:#f0a94b;--warnbg:#3a2c14;--bad:#ff8a80;--c1:#6f93f5;--c2:#4fd1a1;--c3:#f0a94b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:20px 16px 8px;max-width:1180px;margin:auto}
+h1{margin:0;font-size:22px}h2{font-size:17px;margin:0 0 4px}h3{font-size:14px;margin:0 0 8px}
+.sub{color:var(--mut);margin:2px 0 0}
+main{max-width:1180px;margin:auto;padding:8px 16px 60px;display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.hint{color:var(--mut);font-size:13px;margin:0 0 12px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+label{display:block;font-size:12px;color:var(--mut);font-weight:600}
+input,select,textarea{width:100%;margin-top:3px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-offset:-1px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px;border-radius:8px;cursor:pointer}
+button:hover{border-color:var(--pri)}button.p{background:var(--pri);color:#fff;border-color:var(--pri)}
+button.x{color:var(--bad)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.proc{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.proc>.head{display:flex;gap:8px;align-items:end;margin-bottom:10px}
+.proc>.head label{flex:1}
+.cols{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.col{background:var(--bg);border-radius:8px;padding:10px}
+.col h3{display:flex;align-items:center;gap:6px}
+.tag{font-size:11px;padding:1px 7px;border-radius:99px;background:var(--pri2);color:var(--pri)}
+.kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi b{display:block;font-size:22px;line-height:1.2}.kpi span{font-size:12px;color:var(--mut)}
+.kpi.hl{background:var(--okbg);border-color:transparent}.kpi.hl b{color:var(--ok)}
+.two{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.hb{display:grid;grid-template-columns:130px 1fr 110px;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+.hb .t{height:18px;background:var(--bg);border-radius:4px;overflow:hidden}.hb .t i{display:block;height:100%;border-radius:4px}
+.hb .v{text-align:right;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}th{color:var(--mut);font-weight:600}
+tfoot td{font-weight:700}.sc{overflow-x:auto}
+.alert{padding:10px 12px;border-radius:8px;font-size:13px;margin-top:10px}
+.alert.w{background:var(--warnbg);color:var(--warn)}.alert.o{background:var(--okbg);color:var(--ok)}
+.mem{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--bg);border-radius:8px;padding:10px 12px;margin:6px 0;overflow-x:auto;white-space:pre-wrap}
+svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+details summary{cursor:pointer;font-weight:600}
+@media print{.noprint{display:none!important}body{background:#fff}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Calculadora de Ganhos — Backoffice</h1>
+  <p class="sub">Compare sistema legado × sistema novo, descubra <b>onde</b> está o ganho e comprove com números rastreáveis.</p>
+</header>
+<main>
+
+<section class="card">
+  <h2>1. Premissas gerais</h2>
+  <p class="hint">Valores que valem para toda a operação. Troque os exemplos pelos números reais da sua Squad.</p>
+  <div class="grid" id="globais"></div>
+</section>
+
+<section class="card">
+  <h2>2. Processos / atividades da operação</h2>
+  <p class="hint">Um card por atividade de backoffice (ex.: cadastro, conciliação, análise). Preencha o <b>antes</b> (legado) e o <b>depois</b> (novo) e diga <b>como você mediu</b> – isso define quanto do ganho é considerado defensável.</p>
+  <div id="procs"></div>
+  <div class="bar noprint"><button class="p" id="add">+ Adicionar processo</button></div>
+</section>
+
+<section class="card" id="res">
+  <h2>3. Resultado</h2>
+  <div class="kpis" id="kpis"></div>
+  <div id="alertas"></div>
+</section>
+
+<div class="two">
+  <section class="card"><h2>Onde está o ganho (por alavanca)</h2><p class="hint">Cada R$ economizado é atribuído a uma causa: automação, tempo por item ou redução de retrabalho.</p><div id="porAlavanca"></div></section>
+  <section class="card"><h2>Onde está o ganho (por processo)</h2><p class="hint">Quais atividades concentram a economia.</p><div id="porProcesso"></div></section>
+</div>
+
+<section class="card">
+  <h2>Retorno ao longo do tempo</h2>
+  <p class="hint">Fluxo acumulado considerando investimento inicial, curva de adoção e diferença de custo de sistema.</p>
+  <div id="curva"></div>
+</section>
+
+<section class="card">
+  <h2>4. Comprovação — memória de cálculo</h2>
+  <p class="hint">Tabela detalhada + fórmulas aplicadas. É o material para defender o ganho com a diretoria e para auditar depois do go-live.</p>
+  <div class="sc" id="tabela"></div>
+  <details style="margin-top:12px"><summary>Ver fórmulas e passo a passo por processo</summary><div id="memoria"></div></details>
+  <div class="bar noprint">
+    <button id="csv">Exportar CSV</button><button id="json">Salvar JSON</button>
+    <button id="load">Carregar JSON</button><button id="print">Imprimir / PDF</button>
+    <button id="exemplo">Restaurar exemplo</button><button class="x" id="limpar">Zerar tudo</button>
+    <input type="file" id="file" accept=".json" hidden>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Como a Squad responde "de onde vem o ganho?"</h2>
+  <ol style="margin:0;padding-left:20px;color:var(--mut)">
+    <li><b>Linha de base:</b> meça o legado (cronometragem, logs, relatórios de fila) <i>antes</i> do go-live e registre amostra e fonte.</li>
+    <li><b>Alavancas:</b> o ganho só existe se alguma destas mudar — <i>% sem toque humano</i>, <i>minutos por item</i> ou <i>% de retrabalho</i>.</li>
+    <li><b>Confiança:</b> estimativa vale menos que log do sistema; a calculadora aplica um fator de confiança por fonte.</li>
+    <li><b>Capacidade ≠ caixa:</b> horas liberadas só viram dinheiro se houver realocação, redução de horas extras/terceiros ou absorção de volume. Informe a % realizada na adoção.</li>
+    <li><b>Validação pós-go-live:</b> volte, meça de novo e substitua as premissas "novo" por valores reais.</li>
+  </ol>
+</section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const brl=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const num=(n,d=1)=>n.toLocaleString('pt-BR',{maximumFractionDigits:d,minimumFractionDigits:d});
+const pct=n=>num(n,1)+'%';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const FONTES={estimativa:{n:'Estimativa / opinião',f:.6},amostra:{n:'Amostra cronometrada',f:.85},logs:{n:'Logs / dados do sistema',f:1}};
+const GLOBAIS=[
+ ['nome','Nome da iniciativa','text'],
+ ['custoHora','Custo/hora da equipe (R$, carregado)','number'],
+ ['horasFTE','Horas produtivas por FTE/mês','number'],
+ ['adocao','Realização do ganho (%)','number','Quanto das horas liberadas vira benefício real'],
+ ['rampa','Meses até adoção plena','number'],
+ ['horizonte','Horizonte de análise (meses)','number'],
+ ['invest','Investimento único (R$)','number','Implantação, migração, treinamento'],
+ ['sysLeg','Custo mensal do sistema legado (R$)','number','Licença, infra, suporte'],
+ ['sysNew','Custo mensal do sistema novo (R$)','number']
+];
+const PROC_PAD=()=>({nome:'Novo processo',vol:1000,
+ leg:{t:10,auto:0,err:10,rw:15},nov:{t:6,auto:0,err:5,rw:15},fonte:'estimativa',amostra:'',obs:''});
+
+const EXEMPLO=()=>({g:{nome:'Novo sistema de backoffice',custoHora:45,horasFTE:160,adocao:85,rampa:3,horizonte:24,invest:250000,sysLeg:12000,sysNew:20000},
+ procs:[
+  {nome:'Cadastro de documentos',vol:8000,leg:{t:9,auto:0,err:12,rw:20},nov:{t:5,auto:35,err:4,rw:20},fonte:'logs',amostra:'3 meses de log (24k itens)',obs:'OCR + pré-preenchimento'},
+  {nome:'Conciliação financeira',vol:5000,leg:{t:12,auto:10,err:8,rw:25},nov:{t:8,auto:50,err:3,rw:25},fonte:'amostra',amostra:'120 itens cronometrados em 2 semanas',obs:'Regras de match automático'},
+  {nome:'Análise de exceções',vol:1500,leg:{t:25,auto:0,err:15,rw:30},nov:{t:18,auto:0,err:9,rw:30},fonte:'estimativa',amostra:'',obs:'Fila priorizada; ainda sem medição'}
+ ]});
+
+let S=load()||EXEMPLO();
+function load(){try{return JSON.parse(localStorage.getItem('calcGanhos'))}catch(e){return null}}
+function save(){try{localStorage.setItem('calcGanhos',JSON.stringify(S))}catch(e){}}
+
+/* ---------- cálculo ---------- */
+function calc(S){
+ const g=S.g,cost=+g.custoHora||0,ad=(+g.adocao||0)/100;
+ const procs=S.procs.map(p=>{
+  const v=+p.vol||0,L=p.leg,N=p.nov,aL=L.auto/100,aN=N.auto/100;
+  const H0=v*((1-aL)*L.t+L.err/100*L.rw)/60;      // legado
+  const H1=v*((1-aN)*L.t+L.err/100*L.rw)/60;      // + automação
+  const H2=v*((1-aN)*N.t+L.err/100*L.rw)/60;      // + tempo por item
+  const H3=v*((1-aN)*N.t+N.err/100*N.rw)/60;      // + retrabalho = novo
+  const conf=(FONTES[p.fonte]||FONTES.estimativa).f;
+  const hb={auto:H0-H1,tempo:H1-H2,ret:H2-H3},bruto=H0-H3;
+  const adj=bruto*conf*ad;
+  return {p,v,H0,H3,hb,bruto,conf,adj,rs:adj*cost,rsBruto:bruto*cost,
+   alav:{auto:hb.auto*conf*ad*cost,tempo:hb.tempo*conf*ad*cost,ret:hb.ret*conf*ad*cost}};
+ });
+ const sum=k=>procs.reduce((a,x)=>a+x[k],0);
+ const H0=sum('H0'),H3=sum('H3'),bruto=sum('bruto'),adj=sum('adj'),laborRs=sum('rs');
+ const sysDelta=(+g.sysLeg||0)-(+g.sysNew||0);
+ const alav={auto:0,tempo:0,ret:0};procs.forEach(x=>{for(const k in alav)alav[k]+=x.alav[k]});
+ const mensal=laborRs+sysDelta;
+ const H=Math.max(1,+g.horizonte||12),inv=+g.invest||0,r=+g.rampa||0;
+ let cum=-inv,payback=null;const pts=[{m:0,cum}];
+ for(let m=1;m<=H;m++){
+  const ramp=r<=0?1:Math.min(1,m/r);
+  cum+=laborRs*ramp+sysDelta;pts.push({m,cum});
+  if(payback===null&&cum>=0)payback=m;
+ }
+ const totalH=cum+inv;
+ const baseEst=laborRs?procs.filter(x=>x.p.fonte==='estimativa').reduce((a,x)=>a+x.rs,0)/laborRs:0;
+ return {procs,H0,H3,bruto,adj,laborRs,sysDelta,alav,mensal,pts,payback,roi:inv?(cum/inv)*100:null,cum,
+  fte:adj/(+g.horasFTE||160),H,inv,baseEst,reducao:H0?bruto/H0*100:0};
+}
+
+/* ---------- inputs ---------- */
+function fld(label,attr,val,type='number',extra=''){
+ return `<label>${label}<input type="${type}" ${type==='number'?'step="any" min="0"':''} data-k="${attr}" value="${esc(val)}" ${extra}></label>`;
+}
+function renderGlobais(){
+ $('#globais').innerHTML=GLOBAIS.map(([k,l,t,h])=>`<label title="${esc(h||'')}">${l}<input type="${t}" ${t==='number'?'step="any" min="0"':''} data-g="${k}" value="${esc(S.g[k])}"></label>`).join('');
+}
+function renderProcs(){
+ $('#procs').innerHTML=S.procs.map((p,i)=>`
+ <div class="proc" data-i="${i}">
+  <div class="head">
+   <label>Processo<input data-k="nome" value="${esc(p.nome)}"></label>
+   <label style="max-width:170px">Volume/mês (itens)<input type="number" min="0" data-k="vol" value="${p.vol}"></label>
+   <button class="noprint" data-act="dup" title="Duplicar">⧉</button>
+   <button class="noprint x" data-act="del" title="Remover">✕</button>
+  </div>
+  <div class="cols">
+   ${['leg','nov'].map(w=>`<div class="col"><h3>${w==='leg'?'Legado (antes)':'Sistema novo (depois)'} <span class="tag">${w==='leg'?'baseline':'meta/real'}</span></h3>
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+     ${fld('Min. por item (toque humano)',w+'.t',p[w].t)}
+     ${fld('% itens sem toque humano',w+'.auto',p[w].auto)}
+     ${fld('% itens com retrabalho',w+'.err',p[w].err)}
+     ${fld('Min. por retrabalho',w+'.rw',p[w].rw)}
+    </div></div>`).join('')}
+   <div class="col"><h3>Evidência do baseline</h3>
+    <label>Como foi medido?<select data-k="fonte">${Object.entries(FONTES).map(([k,v])=>`<option value="${k}" ${p.fonte===k?'selected':''}>${v.n} (confiança ${v.f*100}%)</option>`).join('')}</select></label>
+    <label style="margin-top:8px">Amostra / período / fonte<input data-k="amostra" value="${esc(p.amostra)}" placeholder="ex.: 200 itens, jan–mar, relatório X"></label>
+    <label style="margin-top:8px">Observações<input data-k="obs" value="${esc(p.obs)}"></label>
+   </div>
+  </div>
+ </div>`).join('')||'<p class="hint">Nenhum processo. Adicione um para começar.</p>';
+}
+
+/* ---------- resultados ---------- */
+function bars(items,fmt){
+ const mx=Math.max(1,...items.map(i=>Math.abs(i.v)));
+ return items.map(i=>`<div class="hb"><span>${esc(i.l)}</span><div class="t"><i style="width:${Math.abs(i.v)/mx*100}%;background:${i.c}"></i></div><span class="v">${fmt(i.v)}</span></div>`).join('');
+}
+function curvaSVG(pts,payback){
+ const W=700,Hh=240,pl=64,pr=14,pt=14,pb=28;
+ const xs=pts.map(p=>p.m),ys=pts.map(p=>p.cum);
+ const mn=Math.min(0,...ys),mx=Math.max(0,...ys),rng=(mx-mn)||1;
+ const X=m=>pl+(m/xs[xs.length-1])*(W-pl-pr),Y=v=>pt+(1-(v-mn)/rng)*(Hh-pt-pb);
+ const path=pts.map((p,i)=>(i?'L':'M')+X(p.m).toFixed(1)+' '+Y(p.cum).toFixed(1)).join('');
+ const ticks=[mn,mn+rng/2,mx].map(v=>`<g><line x1="${pl}" x2="${W-pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pl-6}" y="${Y(v)+4}" text-anchor="end" font-size="11" fill="var(--mut)">${brl(v)}</text></g>`).join('');
+ const mt=[0,Math.round(xs[xs.length-1]/2),xs[xs.length-1]].map(m=>`<text x="${X(m)}" y="${Hh-8}" text-anchor="middle" font-size="11" fill="var(--mut)">mês ${m}</text>`).join('');
+ const pb_=payback!==null?`<circle cx="${X(payback)}" cy="${Y(0)}" r="5" fill="var(--ok)"/><text x="${X(payback)}" y="${Y(0)-9}" text-anchor="middle" font-size="12" fill="var(--ok)" font-weight="700">payback: mês ${payback}</text>`:'';
+ return `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Fluxo acumulado">${ticks}<line x1="${pl}" x2="${W-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--mut)" stroke-dasharray="4 3"/><path d="${path}" fill="none" stroke="var(--pri)" stroke-width="2.5"/>${pb_}${mt}</svg>`;
+}
+function renderRes(){
+ const R=calc(S);
+ $('#kpis').innerHTML=[
+  ['Ganho mensal líquido (regime)',brl(R.mensal),1,'mão de obra + Δ sistema'],
+  ['Ganho anual',brl(R.mensal*12),1,''],
+  ['Horas liberadas/mês',num(R.adj,0)+' h',0,`${num(R.fte,1)} FTE equivalentes`],
+  ['Redução de esforço',pct(R.reducao),0,`${num(R.H0,0)} h → ${num(R.H3,0)} h (bruto)`],
+  ['Payback',R.payback!==null?R.payback+' meses':'> '+R.H+' meses',0,'sobre investimento '+brl(R.inv)],
+  ['ROI em '+R.H+' meses',R.roi!==null?num(R.roi,0)+'%':'—',0,'resultado acumulado: '+brl(R.cum)]
+ ].map(([l,v,h,s])=>`<div class="kpi ${h?'hl':''}"><span>${l}</span><b>${v}</b><span>${s}</span></div>`).join('');
+ const al=[];
+ if(R.baseEst>.4)al.push(['w',`${num(R.baseEst*100,0)}% do ganho em R$ depende de processos com baseline por <b>estimativa</b>. Meça uma amostra antes de apresentar o número como firme.`]);
+ if(R.sysDelta<0)al.push(['w',`O sistema novo custa ${brl(-R.sysDelta)}/mês a mais que o legado; isso reduz o ganho líquido.`]);
+ if(R.mensal<=0)al.push(['w','Ganho líquido ≤ 0 com as premissas atuais: o novo sistema não se paga.']);
+ if(R.mensal>0&&R.baseEst<=.4)al.push(['o','Ganho sustentado por evidências com boa confiança (amostra ou logs).']);
+ $('#alertas').innerHTML=al.map(([c,t])=>`<div class="alert ${c}">${t}</div>`).join('');
+
+ const A=R.alav;
+ $('#porAlavanca').innerHTML=bars([
+  {l:'Automação (sem toque)',v:A.auto,c:'var(--c1)'},{l:'Tempo por item',v:A.tempo,c:'var(--c2)'},
+  {l:'Menos retrabalho',v:A.ret,c:'var(--c3)'},{l:'Δ custo do sistema',v:R.sysDelta,c:R.sysDelta<0?'var(--bad)':'var(--mut)'}],brl)
+  +`<p class="hint" style="margin-top:10px">Valores mensais, já com fator de confiança e realização. A decomposição é sequencial (automação → tempo → retrabalho), por isso soma exata ao total.</p>`;
+ $('#porProcesso').innerHTML=bars(R.procs.map(x=>({l:x.p.nome,v:x.rs,c:'var(--pri)'})).sort((a,b)=>b.v-a.v),brl);
+ $('#curva').innerHTML=curvaSVG(R.pts,R.payback);
+
+ const f=n=>num(n,0);
+ $('#tabela').innerHTML=`<table><thead><tr><th>Processo</th><th>Vol/mês</th><th>h legado</th><th>h novo</th><th>Ganho bruto (h)</th><th>Confiança</th><th>Ganho defensável (h)</th><th>R$/mês</th></tr></thead><tbody>
+ ${R.procs.map(x=>`<tr><td>${esc(x.p.nome)}<br><small style="color:var(--mut)">${FONTES[x.p.fonte].n}${x.p.amostra?' — '+esc(x.p.amostra):''}</small></td><td>${f(x.v)}</td><td>${f(x.H0)}</td><td>${f(x.H3)}</td><td>${f(x.bruto)}</td><td>${x.conf*100}%</td><td>${f(x.adj)}</td><td>${brl(x.rs)}</td></tr>`).join('')}
+ </tbody><tfoot><tr><td>Total</td><td></td><td>${f(R.H0)}</td><td>${f(R.H3)}</td><td>${f(R.bruto)}</td><td></td><td>${f(R.adj)}</td><td>${brl(R.laborRs)}</td></tr></tfoot></table>`;
+
+ const g=S.g;
+ $('#memoria').innerHTML=`<div class="mem">Horas/mês = Volume × [ (1 − %sem toque) × min/item + %retrabalho × min/retrabalho ] ÷ 60
+Ganho bruto = Horas legado − Horas novo
+Ganho defensável (h) = Ganho bruto × Confiança da fonte × Realização (${g.adocao}%)
+Ganho (R$) = Ganho defensável × Custo/hora (${brl(+g.custoHora)}) + (Custo sistema legado − Custo sistema novo)
+Rampa: ganho de mão de obra cresce linearmente até o mês ${g.rampa}; investimento (${brl(+g.invest)}) lançado no mês 0.</div>`+
+ R.procs.map(x=>{const p=x.p,L=p.leg,N=p.nov;
+  return `<h3 style="margin-top:14px">${esc(p.nome)}</h3><div class="mem">Legado: ${f(x.v)} × [ (1−${L.auto/100}) × ${L.t} + ${L.err/100} × ${L.rw} ] ÷ 60 = ${num(x.H0,1)} h
+Novo:   ${f(x.v)} × [ (1−${N.auto/100}) × ${N.t} + ${N.err/100} × ${N.rw} ] ÷ 60 = ${num(x.H3,1)} h
+Bruto = ${num(x.bruto,1)} h  → automação ${num(x.hb.auto,1)} h | tempo/item ${num(x.hb.tempo,1)} h | retrabalho ${num(x.hb.ret,1)} h
+Defensável = ${num(x.bruto,1)} × ${x.conf} × ${g.adocao/100} = ${num(x.adj,1)} h × ${brl(+g.custoHora)} = ${brl(x.rs)}/mês</div>`}).join('');
+ return R;
+}
+
+/* ---------- eventos ---------- */
+function setPath(o,path,v){const ks=path.split('.');let t=o;ks.slice(0,-1).forEach(k=>t=t[k]);t[ks.at(-1)]=v}
+document.addEventListener('input',e=>{
+ const el=e.target;
+ if(el.dataset.g){S.g[el.dataset.g]=el.type==='number'?(parseFloat(el.value)||0):el.value}
+ else if(el.dataset.k){const i=el.closest('.proc').dataset.i;
+  setPath(S.procs[i],el.dataset.k,el.type==='number'?(parseFloat(el.value)||0):el.value)}
+ else return;
+ save();renderRes();
+});
+$('#procs').addEventListener('click',e=>{
+ const b=e.target.closest('[data-act]');if(!b)return;
+ const i=+b.closest('.proc').dataset.i;
+ if(b.dataset.act==='del'){if(!confirm('Remover este processo?'))return;S.procs.splice(i,1)}
+ else S.procs.splice(i+1,0,JSON.parse(JSON.stringify(S.procs[i])));
+ save();renderProcs();renderRes();
+});
+$('#add').onclick=()=>{S.procs.push(PROC_PAD());save();renderProcs();renderRes()};
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+$('#json').onclick=()=>download('ganhos.json',JSON.stringify(S,null,2),'application/json');
+$('#load').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!d.g||!Array.isArray(d.procs))throw 0;S=d;save();init()}catch{alert('Arquivo inválido.')}});e.target.value=''};
+$('#print').onclick=()=>print();
+$('#exemplo').onclick=()=>{if(confirm('Substituir dados atuais pelo exemplo?')){S=EXEMPLO();save();init()}};
+$('#limpar').onclick=()=>{if(confirm('Zerar todos os processos?')){S.procs=[];save();init()}};
+$('#csv').onclick=()=>{
+ const R=calc(S);const q=v=>`"${String(v).replace(/"/g,'""')}"`;
+ const rows=[['Processo','Volume/mes','Min/item legado','%sem toque legado','%retrabalho legado','Min/retrabalho legado','Min/item novo','%sem toque novo','%retrabalho novo','Min/retrabalho novo','Horas legado','Horas novo','Ganho bruto h','Fonte','Amostra','Confianca','Ganho defensavel h','Ganho R$/mes']];
+ R.procs.forEach(x=>{const p=x.p;rows.push([p.nome,p.vol,p.leg.t,p.leg.auto,p.leg.err,p.leg.rw,p.nov.t,p.nov.auto,p.nov.err,p.nov.rw,x.H0.toFixed(2),x.H3.toFixed(2),x.bruto.toFixed(2),FONTES[p.fonte].n,p.amostra,x.conf,x.adj.toFixed(2),x.rs.toFixed(2)])});
+ download('ganhos.csv','﻿'+rows.map(r=>r.map(q).join(';')).join('\n'),'text/csv');
+};
+function init(){renderGlobais();renderProcs();renderRes()}
+init();
+</script>
+</body>
+</html>
