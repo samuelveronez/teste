@@ -137,11 +137,11 @@ const GLOBAIS=[
  ['sysNew','Custo mensal do sistema novo (R$)','number']
 ];
 const PROC_PAD=()=>({nome:'Novo processo',vol:1000,
- leg:{t:10,auto:0,err:10,rw:15},nov:{t:6,auto:0,err:5,rw:15},fonte:'estimativa',amostra:'',obs:''});
+ leg:{t:10,auto:0,err:10,rw:15},nov:{t:6,auto:0,err:5,rw:15},fonte:'estimativa',amostra:'',obs:'',cli:{on:false,seg:4,l:0,n:0}});
 
 const EXEMPLO=()=>({g:{nome:'Novo sistema de backoffice',custoHora:45,horasFTE:160,adocao:85,rampa:3,horizonte:24,invest:250000,sysLeg:12000,sysNew:20000},
  procs:[
-  {nome:'Cadastro de documentos',vol:8000,leg:{t:9,auto:0,err:12,rw:20},nov:{t:5,auto:35,err:4,rw:20},fonte:'logs',amostra:'3 meses de log (24k itens)',obs:'OCR + pré-preenchimento'},
+  {nome:'Cadastro de documentos',vol:8000,leg:{t:9,auto:0,err:12,rw:20},nov:{t:5,auto:35,err:4,rw:20},fonte:'logs',amostra:'3 meses de log (24k itens)',obs:'OCR + pré-preenchimento',cli:{on:false,seg:4,l:135,n:70}},
   {nome:'Conciliação financeira',vol:5000,leg:{t:12,auto:10,err:8,rw:25},nov:{t:8,auto:50,err:3,rw:25},fonte:'amostra',amostra:'120 itens cronometrados em 2 semanas',obs:'Regras de match automático'},
   {nome:'Análise de exceções',vol:1500,leg:{t:25,auto:0,err:15,rw:30},nov:{t:18,auto:0,err:9,rw:30},fonte:'estimativa',amostra:'',obs:'Fila priorizada; ainda sem medição'}
  ]});
@@ -155,14 +155,15 @@ function calc(S){
  const g=S.g,cost=+g.custoHora||0,ad=(+g.adocao||0)/100;
  const procs=S.procs.map(p=>{
   const v=+p.vol||0,L=p.leg,N=p.nov,aL=L.auto/100,aN=N.auto/100;
-  const H0=v*((1-aL)*L.t+L.err/100*L.rw)/60;      // legado
-  const H1=v*((1-aN)*L.t+L.err/100*L.rw)/60;      // + automação
-  const H2=v*((1-aN)*N.t+L.err/100*L.rw)/60;      // + tempo por item
-  const H3=v*((1-aN)*N.t+N.err/100*N.rw)/60;      // + retrabalho = novo
+  const cl=p.cli||{},uc=cl.on&&cl.seg>0,tL=uc&&cl.l>0?cl.l*cl.seg/60:L.t,tN=uc&&cl.n>0?cl.n*cl.seg/60:N.t;
+  const H0=v*((1-aL)*tL+L.err/100*L.rw)/60;      // legado
+  const H1=v*((1-aN)*tL+L.err/100*L.rw)/60;      // + automação
+  const H2=v*((1-aN)*tN+L.err/100*L.rw)/60;      // + tempo por item
+  const H3=v*((1-aN)*tN+N.err/100*N.rw)/60;      // + retrabalho = novo
   const conf=(FONTES[p.fonte]||FONTES.estimativa).f;
   const hb={auto:H0-H1,tempo:H1-H2,ret:H2-H3},bruto=H0-H3;
   const adj=bruto*conf*ad;
-  return {p,v,H0,H3,hb,bruto,conf,adj,rs:adj*cost,rsBruto:bruto*cost,
+  return {p,v,tL,tN,H0,H3,hb,bruto,conf,adj,rs:adj*cost,rsBruto:bruto*cost,
    alav:{auto:hb.auto*conf*ad*cost,tempo:hb.tempo*conf*ad*cost,ret:hb.ret*conf*ad*cost}};
  });
  const sum=k=>procs.reduce((a,x)=>a+x[k],0);
@@ -190,6 +191,8 @@ function fld(label,attr,val,type='number',extra=''){
 function renderGlobais(){
  $('#globais').innerHTML=GLOBAIS.map(([k,l,t,h])=>`<label title="${esc(h||'')}">${l}<input type="${t}" ${t==='number'?'step="any" min="0"':''} data-g="${k}" value="${esc(S.g[k])}"></label>`).join('');
 }
+const cliOn=p=>p.cli&&p.cli.on&&p.cli.seg>0&&(p.cli.l>0||p.cli.n>0);
+const effT=(p,w)=>{const c=p.cli,q=w==='leg'?c.l:c.n;return q>0?q*c.seg/60:p[w].t};
 function renderProcs(){
  $('#procs').innerHTML=S.procs.map((p,i)=>`
  <div class="proc" data-i="${i}">
@@ -202,11 +205,20 @@ function renderProcs(){
   <div class="cols">
    ${['leg','nov'].map(w=>`<div class="col"><h3>${w==='leg'?'Legado (antes)':'Sistema novo (depois)'} <span class="tag">${w==='leg'?'baseline':'meta/real'}</span></h3>
     <div class="grid" style="grid-template-columns:1fr 1fr">
-     ${fld('Min. por item (toque humano)',w+'.t',p[w].t)}
+     ${fld('Min. por item (toque humano)'+(cliOn(p)?' · via cliques':''),w+'.t',cliOn(p)?+(effT(p,w)).toFixed(2):p[w].t,'number',cliOn(p)?'disabled':'')}
      ${fld('% itens sem toque humano',w+'.auto',p[w].auto)}
      ${fld('% itens com retrabalho',w+'.err',p[w].err)}
      ${fld('Min. por retrabalho',w+'.rw',p[w].rw)}
     </div></div>`).join('')}
+   <div class="col"><h3>Cliques <span class="tag">opcional</span></h3>
+    <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" style="width:auto;margin:0" data-k="cli.on" ${p.cli&&p.cli.on?'checked':''}> Estimar minutos por item a partir dos cliques</label>
+    <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:8px">
+     ${fld('Cliques por item (legado)','cli.l',p.cli.l)}
+     ${fld('Cliques por item (novo)','cli.n',p.cli.n)}
+    </div>
+    ${fld('Segundos por clique (medido em amostra)','cli.seg',p.cli.seg,'number','style="margin-bottom:6px"')}
+    <div data-chk class="hint" style="margin:6px 0 0"></div>
+   </div>
    <div class="col"><h3>Evidência do baseline</h3>
     <label>Como foi medido?<select data-k="fonte">${Object.entries(FONTES).map(([k,v])=>`<option value="${k}" ${p.fonte===k?'selected':''}>${v.n} (confiança ${v.f*100}%)</option>`).join('')}</select></label>
     <label style="margin-top:8px">Amostra / período / fonte<input data-k="amostra" value="${esc(p.amostra)}" placeholder="ex.: 200 itens, jan–mar, relatório X"></label>
@@ -232,8 +244,17 @@ function curvaSVG(pts,payback){
  const pb_=payback!==null?`<circle cx="${X(payback)}" cy="${Y(0)}" r="5" fill="var(--ok)"/><text x="${X(payback)}" y="${Y(0)-9}" text-anchor="middle" font-size="12" fill="var(--ok)" font-weight="700">payback: mês ${payback}</text>`:'';
  return `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Fluxo acumulado">${ticks}<line x1="${pl}" x2="${W-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--mut)" stroke-dasharray="4 3"/><path d="${path}" fill="none" stroke="var(--pri)" stroke-width="2.5"/>${pb_}${mt}</svg>`;
 }
+function updateChecks(R){
+ document.querySelectorAll('.proc').forEach((el,i)=>{const x=R.procs[i],c=x.p.cli,d=el.querySelector('[data-chk]');if(!d)return;
+  let m='Cliques medem esforço, não tempo: informe os segundos por clique medidos em amostra.';
+  if(c.l>0&&c.n>0&&!cliOn(x.p)){
+   const a=x.p.leg.t*60/c.l,b=x.p.nov.t*60/c.n;
+   m=`Segundos por clique implícitos: legado ${num(a,1)} s · novo ${num(b,1)} s.`+(a>0&&Math.abs(b/a-1)>.3?' ⚠ O tempo por clique mudou muito (espera, leitura ou decisão): revise os tempos ou os cliques.':' Coerente.');
+  }else if(cliOn(x.p))m=`Minutos calculados: legado ${num(x.tL,2)} · novo ${num(x.tN,2)} (cliques × ${c.seg} s).`;
+  d.textContent=m;d.style.color=m.includes('⚠')?'var(--warn)':'';});
+}
 function renderRes(){
- const R=calc(S);
+ const R=calc(S);updateChecks(R);
  $('#kpis').innerHTML=[
   ['Ganho mensal líquido (regime)',brl(R.mensal),1,'mão de obra + Δ sistema'],
   ['Ganho anual',brl(R.mensal*12),1,''],
@@ -269,8 +290,8 @@ Ganho defensável (h) = Ganho bruto × Confiança da fonte × Realização (${g.
 Ganho (R$) = Ganho defensável × Custo/hora (${brl(+g.custoHora)}) + (Custo sistema legado − Custo sistema novo)
 Rampa: ganho de mão de obra cresce linearmente até o mês ${g.rampa}; investimento (${brl(+g.invest)}) lançado no mês 0.</div>`+
  R.procs.map(x=>{const p=x.p,L=p.leg,N=p.nov;
-  return `<h3 style="margin-top:14px">${esc(p.nome)}</h3><div class="mem">Legado: ${f(x.v)} × [ (1−${L.auto/100}) × ${L.t} + ${L.err/100} × ${L.rw} ] ÷ 60 = ${num(x.H0,1)} h
-Novo:   ${f(x.v)} × [ (1−${N.auto/100}) × ${N.t} + ${N.err/100} × ${N.rw} ] ÷ 60 = ${num(x.H3,1)} h
+  return `<h3 style="margin-top:14px">${esc(p.nome)}</h3><div class="mem">Legado: ${f(x.v)} × [ (1−${L.auto/100}) × ${num(x.tL,2)} + ${L.err/100} × ${L.rw} ] ÷ 60 = ${num(x.H0,1)} h
+Novo:   ${f(x.v)} × [ (1−${N.auto/100}) × ${num(x.tN,2)} + ${N.err/100} × ${N.rw} ] ÷ 60 = ${num(x.H3,1)} h
 Bruto = ${num(x.bruto,1)} h  → automação ${num(x.hb.auto,1)} h | tempo/item ${num(x.hb.tempo,1)} h | retrabalho ${num(x.hb.ret,1)} h
 Defensável = ${num(x.bruto,1)} × ${x.conf} × ${g.adocao/100} = ${num(x.adj,1)} h × ${brl(+g.custoHora)} = ${brl(x.rs)}/mês</div>`}).join('');
  return R;
@@ -282,7 +303,8 @@ document.addEventListener('input',e=>{
  const el=e.target;
  if(el.dataset.g){S.g[el.dataset.g]=el.type==='number'?(parseFloat(el.value)||0):el.value}
  else if(el.dataset.k){const i=el.closest('.proc').dataset.i;
-  setPath(S.procs[i],el.dataset.k,el.type==='number'?(parseFloat(el.value)||0):el.value)}
+  setPath(S.procs[i],el.dataset.k,el.type==='checkbox'?el.checked:el.type==='number'?(parseFloat(el.value)||0):el.value);
+  if(el.type==='checkbox'){save();renderProcs();renderRes();return}}
  else return;
  save();renderRes();
 });
@@ -330,15 +352,15 @@ function sheetXml(rows){
 function exportXlsx(){
  const R=calc(S),g=S.g;
  const prem=[['Premissa','Valor'],['Iniciativa',g.nome],['Custo/hora (R$)',+g.custoHora],['Horas produtivas por FTE/mês',+g.horasFTE],['Realização do ganho (%)',+g.adocao],['Meses até adoção plena',+g.rampa],['Horizonte (meses)',+g.horizonte],['Investimento único (R$)',+g.invest],['Custo mensal sistema legado (R$)',+g.sysLeg],['Custo mensal sistema novo (R$)',+g.sysNew]];
- const head=['Processo','Volume/mês','Min/item legado','% sem toque legado','% retrabalho legado','Min/retrabalho legado','Min/item novo','% sem toque novo','% retrabalho novo','Min/retrabalho novo','Fonte do baseline','Amostra / fonte','Observações','Confiança','Horas legado','Horas novo','Ganho bruto (h)','Ganho defensável (h)','Ganho (R$/mês)'];
+ const head=['Processo','Volume/mês','Min/item legado','% sem toque legado','% retrabalho legado','Min/retrabalho legado','Min/item novo','% sem toque novo','% retrabalho novo','Min/retrabalho novo','Fonte do baseline','Amostra / fonte','Observações','Confiança','Horas legado','Horas novo','Ganho bruto (h)','Ganho defensável (h)','Ganho (R$/mês)','Cliques/item legado','Cliques/item novo','Segundos por clique','Minutos via cliques?'];
  const rows=[head];
  R.procs.forEach((x,i)=>{const p=x.p,n=i+2,L=p.leg,N=p.nov;
-  rows.push([p.nome,+p.vol,L.t,L.auto,L.err,L.rw,N.t,N.auto,N.err,N.rw,FONTES[p.fonte].n,p.amostra,p.obs,x.conf,
+  rows.push([p.nome,+p.vol,+x.tL.toFixed(4),L.auto,L.err,L.rw,+x.tN.toFixed(4),N.auto,N.err,N.rw,FONTES[p.fonte].n,p.amostra,p.obs,x.conf,
    {f:`B${n}*((1-D${n}/100)*C${n}+E${n}/100*F${n})/60`,v:x.H0},
    {f:`B${n}*((1-H${n}/100)*G${n}+I${n}/100*J${n})/60`,v:x.H3},
    {f:`O${n}-P${n}`,v:x.bruto},
    {f:`Q${n}*N${n}*Premissas!B5/100`,v:x.adj},
-   {f:`R${n}*Premissas!B3`,v:x.rs}]);
+   {f:`R${n}*Premissas!B3`,v:x.rs},p.cli.l||'',p.cli.n||'',p.cli.seg||'',cliOn(p)?'sim':'não']);
  });
  const last=R.procs.length+1;
  if(R.procs.length)rows.push(['Total','','','','','','','','','','','','','',{f:`SUM(O2:O${last})`,v:R.H0},{f:`SUM(P2:P${last})`,v:R.H3},{f:`SUM(Q2:Q${last})`,v:R.bruto},{f:`SUM(R2:R${last})`,v:R.adj},{f:`SUM(S2:S${last})`,v:R.laborRs}]);
@@ -443,7 +465,7 @@ function exportPptx(){
  const a=document.createElement('a');a.href=URL.createObjectURL(zip(f,'application/vnd.openxmlformats-officedocument.presentationml.presentation'));a.download='apresentacao-diretoria-'+new Date().toISOString().slice(0,10)+'.pptx';a.click();URL.revokeObjectURL(a.href);
 }
 $('#pptx').onclick=exportPptx;
-function init(){renderGlobais();renderProcs();renderRes()}
+function init(){S.procs.forEach(p=>{p.cli=p.cli||{on:false,seg:4,l:0,n:0}});renderGlobais();renderProcs();renderRes()}
 init();
 </script>
 </body>
