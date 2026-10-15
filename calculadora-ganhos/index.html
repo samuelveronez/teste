@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de Ganhos Backoffice</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#1c2230;--mut:#667085;--line:#e3e6ec;--pri:#2457d6;--pri2:#e8eefc;--ok:#12805c;--okbg:#e4f5ee;--warn:#b25e09;--warnbg:#fdf1de;--bad:#b42318;--c1:#2457d6;--c2:#12a37f;--c3:#e08a1e}
+@media (prefers-color-scheme:dark){:root{--bg:#10141c;--card:#181e2a;--ink:#e8ebf2;--mut:#9aa4b5;--line:#2a3243;--pri:#6f93f5;--pri2:#1f2a47;--ok:#4fd1a1;--okbg:#14352b;--warn:#f0a94b;--warnbg:#3a2c14;--bad:#ff8a80;--c1:#6f93f5;--c2:#4fd1a1;--c3:#f0a94b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:20px 16px 8px;max-width:1180px;margin:auto}
+h1{margin:0;font-size:22px}h2{font-size:17px;margin:0 0 4px}h3{font-size:14px;margin:0 0 8px}
+.sub{color:var(--mut);margin:2px 0 0}
+main{max-width:1180px;margin:auto;padding:8px 16px 60px;display:grid;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.hint{color:var(--mut);font-size:13px;margin:0 0 12px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+label{display:block;font-size:12px;color:var(--mut);font-weight:600}
+input,select,textarea{width:100%;margin-top:3px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--pri);outline-offset:-1px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:7px 12px;border-radius:8px;cursor:pointer}
+button:hover{border-color:var(--pri)}button.p{background:var(--pri);color:#fff;border-color:var(--pri)}
+button.x{color:var(--bad)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.proc{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+.proc>.head{display:flex;gap:8px;align-items:end;margin-bottom:10px}
+.proc>.head label{flex:1}
+.cols{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.col{background:var(--bg);border-radius:8px;padding:10px}
+.col h3{display:flex;align-items:center;gap:6px}
+.tag{font-size:11px;padding:1px 7px;border-radius:99px;background:var(--pri2);color:var(--pri)}
+.kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi b{display:block;font-size:22px;line-height:1.2}.kpi span{font-size:12px;color:var(--mut)}
+.kpi.hl{background:var(--okbg);border-color:transparent}.kpi.hl b{color:var(--ok)}
+.two{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.hb{display:grid;grid-template-columns:130px 1fr 110px;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+.hb .t{height:18px;background:var(--bg);border-radius:4px;overflow:hidden}.hb .t i{display:block;height:100%;border-radius:4px}
+.hb .v{text-align:right;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}th{color:var(--mut);font-weight:600}
+tfoot td{font-weight:700}.sc{overflow-x:auto}
+.alert{padding:10px 12px;border-radius:8px;font-size:13px;margin-top:10px}
+.alert.w{background:var(--warnbg);color:var(--warn)}.alert.o{background:var(--okbg);color:var(--ok)}
+.mem{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--bg);border-radius:8px;padding:10px 12px;margin:6px 0;overflow-x:auto;white-space:pre-wrap}
+svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+details summary{cursor:pointer;font-weight:600}
+@media print{.noprint{display:none!important}body{background:#fff}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Calculadora de Ganhos — Backoffice</h1>
+  <p class="sub">Compare sistema legado × sistema novo, descubra <b>onde</b> está o ganho e comprove com números rastreáveis.</p>
+</header>
+<main>
+
+<section class="card">
+  <h2>1. Premissas gerais</h2>
+  <p class="hint">Valores que valem para toda a operação. Troque os exemplos pelos números reais da sua Squad.</p>
+  <div class="grid" id="globais"></div>
+</section>
+
+<section class="card">
+  <h2>2. Processos / atividades da operação</h2>
+  <p class="hint">Um card por atividade de backoffice (ex.: cadastro, conciliação, análise). Preencha o <b>antes</b> (legado) e o <b>depois</b> (novo) e diga <b>como você mediu</b> – isso define quanto do ganho é considerado defensável.</p>
+  <div id="procs"></div>
+  <div class="bar noprint"><button class="p" id="add">+ Adicionar processo</button></div>
+</section>
+
+<section class="card" id="res">
+  <h2>3. Resultado</h2>
+  <div class="kpis" id="kpis"></div>
+  <div id="alertas"></div>
+</section>
+
+<div class="two">
+  <section class="card"><h2>Onde está o ganho (por alavanca)</h2><p class="hint">Cada R$ economizado é atribuído a uma causa: automação, tempo por item ou redução de retrabalho.</p><div id="porAlavanca"></div></section>
+  <section class="card"><h2>Onde está o ganho (por núcleo)</h2><p class="hint">Resultado de cada núcleo operacional.</p><div id="porNucleo"></div></section>
+  <section class="card"><h2>Onde está o ganho (por processo)</h2><p class="hint">Quais atividades concentram a economia.</p><div id="porProcesso"></div></section>
+</div>
+
+<section class="card">
+  <h2>Retorno ao longo do tempo</h2>
+  <p class="hint">Fluxo acumulado considerando investimento inicial, curva de adoção e diferença de custo de sistema.</p>
+  <div id="curva"></div>
+</section>
+
+<section class="card">
+  <h2>Simulador de features — o que mais aumenta o ganho</h2>
+  <p class="hint">Cada feature altera o cenário "novo" de um processo (mais itens sem toque, menos minutos por item, menos retrabalho). O ganho incremental já considera confiança da fonte e realização. Os resultados principais acima <b>não</b> mudam: aqui é uma simulação.</p>
+  <div id="feats"></div>
+  <div class="bar noprint"><button class="p" id="addFeat">+ Adicionar feature</button></div>
+  <div id="featRes" style="margin-top:14px"></div>
+</section>
+
+<section class="card">
+  <h2>4. Comprovação — memória de cálculo</h2>
+  <p class="hint">Tabela detalhada + fórmulas aplicadas. É o material para defender o ganho com a diretoria e para auditar depois do go-live.</p>
+  <div class="sc" id="tabela"></div>
+  <details style="margin-top:12px"><summary>Ver fórmulas e passo a passo por processo</summary><div id="memoria"></div></details>
+  <div class="bar noprint">
+    <button class="p" id="json" title="Salva premissas + processos em um arquivo">Exportar JSON</button>
+    <button id="load" title="Carrega um arquivo exportado">Importar JSON</button>
+    <button id="xlsx" title="Planilha com fórmulas para auditar no Excel">Exportar XLSX</button>
+    <button id="pptx" title="Apresentação executiva para a diretoria">Exportar PPTX (diretoria)</button>
+    <button id="print">Imprimir / PDF</button>
+    <button id="exemplo">Restaurar exemplo</button><button class="x" id="limpar">Zerar tudo</button>
+    <input type="file" id="file" accept=".json" hidden>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Como a Squad responde "de onde vem o ganho?"</h2>
+  <ol style="margin:0;padding-left:20px;color:var(--mut)">
+    <li><b>Linha de base:</b> meça o legado (cronometragem, logs, relatórios de fila) <i>antes</i> do go-live e registre amostra e fonte.</li>
+    <li><b>Alavancas:</b> o ganho só existe se alguma destas mudar — <i>% sem toque humano</i>, <i>minutos por item</i> ou <i>% de retrabalho</i>.</li>
+    <li><b>Confiança:</b> estimativa vale menos que log do sistema; a calculadora aplica um fator de confiança por fonte.</li>
+    <li><b>Capacidade ≠ caixa:</b> horas liberadas só viram dinheiro se houver realocação, redução de horas extras/terceiros ou absorção de volume. Informe a % realizada na adoção.</li>
+    <li><b>Validação pós-go-live:</b> volte, meça de novo e substitua as premissas "novo" por valores reais.</li>
+  </ol>
+</section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+const brl=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const num=(n,d=1)=>n.toLocaleString('pt-BR',{maximumFractionDigits:d,minimumFractionDigits:d});
+const pct=n=>num(n,1)+'%';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const FONTES={estimativa:{n:'Estimativa / opinião',f:.6},amostra:{n:'Amostra cronometrada',f:.85},logs:{n:'Logs / dados do sistema',f:1}};
+const GLOBAIS=[
+ ['nome','Nome da iniciativa','text'],
+ ['custoHora','Custo/hora da equipe (R$, carregado)','number'],
+ ['horasFTE','Horas produtivas por FTE/mês','number'],
+ ['adocao','Realização do ganho (%)','number','Quanto das horas liberadas vira benefício real'],
+ ['rampa','Meses até adoção plena','number'],
+ ['horizonte','Horizonte de análise (meses)','number'],
+ ['invest','Investimento único (R$)','number','Implantação, migração, treinamento'],
+ ['sysLeg','Custo mensal do sistema legado (R$)','number','Licença, infra, suporte'],
+ ['sysNew','Custo mensal do sistema novo (R$)','number']
+];
+const PROC_PAD=()=>({nome:'Novo processo',nucleo:'Análise interna',vol:1000,
+ leg:{t:10,auto:0,err:10,rw:15},nov:{t:6,auto:0,err:5,rw:15},fonte:'estimativa',amostra:'',obs:'',cli:{on:false,seg:4,l:0,n:0}});
+
+const EXEMPLO=()=>{
+ const P=(nucleo,nome,vol,L,N,fonte,amostra,obs,cli)=>({nucleo,nome,vol,leg:{t:L[0],auto:L[1],err:L[2],rw:L[3]},nov:{t:N[0],auto:N[1],err:N[2],rw:N[3]},fonte,amostra,obs,cli:cli||{on:false,seg:4,l:0,n:0}});
+ const AI='Análise interna',LQ='Liquidação';
+ return {g:{nome:'Novo sistema de sinistros auto',custoHora:45,horasFTE:160,adocao:85,rampa:3,horizonte:24,invest:450000,sysLeg:15000,sysNew:28000},
+ procs:[
+  P(AI,'Triagem e roteamento',12000,[4,0,6,10],[1.5,40,3,10],'logs','3 meses de log da fila de entrada','Regras automáticas de roteamento'),
+  P(AI,'Análise documental',9000,[8,0,15,12],[5,20,6,12],'amostra','150 itens cronometrados em 2 semanas','OCR + conferência assistida',{on:false,seg:4,l:120,n:75}),
+  P(AI,'Cobertura, franquia e indenização',7000,[14,0,7,20],[10,15,3,20],'amostra','100 itens cronometrados','Cálculo e regras da apólice no sistema'),
+  P(AI,'Fraude e exceções',1200,[35,0,10,40],[26,0,6,40],'estimativa','','Fila priorizada por score; sem medição ainda'),
+  P(AI,'Aprovação e alçadas',6000,[6,0,5,15],[3,45,3,15],'logs','Relatório de alçadas, 3 meses','Aprovação automática dentro da alçada'),
+  P(AI,'Atendimento relacionado ao sinistro',5000,[7,0,20,10],[5,0,12,10],'estimativa','','Menos contatos por status automático'),
+  P(LQ,'Liquidação de roubo e furto',900,[55,0,12,45],[38,0,6,45],'amostra','40 casos acompanhados','Checklist e documentos digitais'),
+  P(LQ,'Liquidação de perda total',700,[70,0,14,50],[48,0,7,50],'amostra','35 casos acompanhados','Avaliação e salvado no mesmo fluxo'),
+  P(LQ,'Pagamento em dinheiro (acordo em colisão e sinistros sem casco)',3200,[18,0,9,25],[8,30,3,25],'estimativa','','Pagamento e conciliação integrados')
+ ],
+ feats:[
+  {nome:'Aprovação automática dentro da alçada',proc:'Aprovação e alçadas',dAuto:25,dTempo:0,dErr:0,custo:30000,on:true},
+  {nome:'OCR e extração de dados dos documentos',proc:'Análise documental',dAuto:0,dTempo:20,dErr:3,custo:45000,on:true},
+  {nome:'Fast track para sinistros simples',proc:'Triagem e roteamento',dAuto:15,dTempo:0,dErr:0,custo:20000,on:true},
+  {nome:'Status automático ao cliente',proc:'Atendimento relacionado ao sinistro',dAuto:0,dTempo:0,dErr:5,custo:12000,on:true},
+  {nome:'Score de fraude',proc:'Fraude e exceções',dAuto:0,dTempo:15,dErr:3,custo:35000,on:true},
+  {nome:'Pagamento em dinheiro automatizado',proc:'Pagamento em dinheiro (acordo em colisão e sinistros sem casco)',dAuto:25,dTempo:0,dErr:0,custo:28000,on:true}
+ ]}};
+
+let S=load()||EXEMPLO();
+function load(){try{return JSON.parse(localStorage.getItem('calcGanhos'))}catch(e){return null}}
+function save(){try{localStorage.setItem('calcGanhos',JSON.stringify(S))}catch(e){}}
+
+/* ---------- cálculo ---------- */
+function calc(S){
+ const g=S.g,cost=+g.custoHora||0,ad=(+g.adocao||0)/100;
+ const procs=S.procs.map(p=>{
+  const v=+p.vol||0,L=p.leg,N=p.nov,aL=L.auto/100,aN=N.auto/100;
+  const cl=p.cli||{},uc=cl.on&&cl.seg>0,tL=uc&&cl.l>0?cl.l*cl.seg/60:L.t,tN=uc&&cl.n>0?cl.n*cl.seg/60:N.t;
+  const H0=v*((1-aL)*tL+L.err/100*L.rw)/60;      // legado
+  const H1=v*((1-aN)*tL+L.err/100*L.rw)/60;      // + automação
+  const H2=v*((1-aN)*tN+L.err/100*L.rw)/60;      // + tempo por item
+  const H3=v*((1-aN)*tN+N.err/100*N.rw)/60;      // + retrabalho = novo
+  const conf=(FONTES[p.fonte]||FONTES.estimativa).f;
+  const hb={auto:H0-H1,tempo:H1-H2,ret:H2-H3},bruto=H0-H3;
+  const adj=bruto*conf*ad;
+  return {p,v,tL,tN,H0,H3,hb,bruto,conf,adj,rs:adj*cost,rsBruto:bruto*cost,
+   alav:{auto:hb.auto*conf*ad*cost,tempo:hb.tempo*conf*ad*cost,ret:hb.ret*conf*ad*cost}};
+ });
+ const sum=k=>procs.reduce((a,x)=>a+x[k],0);
+ const H0=sum('H0'),H3=sum('H3'),bruto=sum('bruto'),adj=sum('adj'),laborRs=sum('rs');
+ const sysDelta=(+g.sysLeg||0)-(+g.sysNew||0);
+ const nuc={};procs.forEach(x=>{const k=x.p.nucleo||'Sem núcleo';(nuc[k]=nuc[k]||{k,rs:0,adj:0,H0:0,H3:0,bruto:0,n:0});const q=nuc[k];q.rs+=x.rs;q.adj+=x.adj;q.H0+=x.H0;q.H3+=x.H3;q.bruto+=x.bruto;q.n++});
+ const alav={auto:0,tempo:0,ret:0};procs.forEach(x=>{for(const k in alav)alav[k]+=x.alav[k]});
+ const mensal=laborRs+sysDelta;
+ const H=Math.max(1,+g.horizonte||12),inv=+g.invest||0,r=+g.rampa||0;
+ let cum=-inv,payback=null;const pts=[{m:0,cum}];
+ for(let m=1;m<=H;m++){
+  const ramp=r<=0?1:Math.min(1,m/r);
+  cum+=laborRs*ramp+sysDelta;pts.push({m,cum});
+  if(payback===null&&cum>=0)payback=m;
+ }
+ const totalH=cum+inv;
+ const baseEst=laborRs?procs.filter(x=>x.p.fonte==='estimativa').reduce((a,x)=>a+x.rs,0)/laborRs:0;
+ return {nucleos:Object.values(nuc),procs,H0,H3,bruto,adj,laborRs,sysDelta,alav,mensal,pts,payback,roi:inv?(cum/inv)*100:null,cum,
+  fte:adj/(+g.horasFTE||160),H,inv,baseEst,reducao:H0?bruto/H0*100:0};
+}
+
+/* ---------- simulador de features ---------- */
+function applyF(p,f){
+ const q=JSON.parse(JSON.stringify(p));
+ q.nov.auto=Math.min(100,q.nov.auto+(+f.dAuto||0));
+ q.nov.err=Math.max(0,q.nov.err-(+f.dErr||0));
+ const k=1-(+f.dTempo||0)/100;
+ if(q.cli&&q.cli.on&&q.cli.seg>0&&q.cli.n>0)q.cli.n*=k;else q.nov.t*=k;
+ return q;
+}
+function featCalc(S){
+ const base=calc(S),feats=S.feats||[];
+ const rows=feats.map(f=>{
+  const i=S.procs.findIndex(p=>p.nome===f.proc);
+  if(i<0)return {f,miss:true,inc:0,pb:null};
+  const inc=calc({g:S.g,procs:S.procs.map((p,j)=>j===i?applyF(p,f):p)}).laborRs-base.laborRs;
+  return {f,inc,pb:inc>0&&f.custo>0?f.custo/inc:null};
+ });
+ let procs=S.procs;
+ feats.filter(f=>f.on).forEach(f=>{procs=procs.map(p=>p.nome===f.proc?applyF(p,f):p)});
+ const comb=calc({g:S.g,procs}).laborRs-base.laborRs;
+ const custo=feats.filter(f=>f.on).reduce((a,f)=>a+(+f.custo||0),0);
+ return {rows,comb,custo,base};
+}
+
+/* ---------- inputs ---------- */
+function fld(label,attr,val,type='number',extra=''){
+ return `<label>${label}<input type="${type}" ${type==='number'?'step="any" min="0"':''} data-k="${attr}" value="${esc(val)}" ${extra}></label>`;
+}
+function renderGlobais(){
+ $('#globais').innerHTML=GLOBAIS.map(([k,l,t,h])=>`<label title="${esc(h||'')}">${l}<input type="${t}" ${t==='number'?'step="any" min="0"':''} data-g="${k}" value="${esc(S.g[k])}"></label>`).join('');
+}
+const cliOn=p=>p.cli&&p.cli.on&&p.cli.seg>0&&(p.cli.l>0||p.cli.n>0);
+const effT=(p,w)=>{const c=p.cli,q=w==='leg'?c.l:c.n;return q>0?q*c.seg/60:p[w].t};
+function renderProcs(){
+ $('#procs').innerHTML=`<datalist id="nucleos">${[...new Set(S.procs.map(p=>p.nucleo).filter(Boolean))].map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`+S.procs.map((p,i)=>(i===0||p.nucleo!==S.procs[i-1].nucleo?`<h3 style="margin:14px 0 8px;color:var(--pri)">${esc(p.nucleo||'Sem núcleo')}</h3>`:'')+`
+ <div class="proc" data-i="${i}">
+  <div class="head">
+   <label style="max-width:200px">Núcleo<input data-k="nucleo" list="nucleos" value="${esc(p.nucleo||'')}"></label>
+   <label>Processo<input data-k="nome" value="${esc(p.nome)}"></label>
+   <label style="max-width:170px">Volume/mês (itens)<input type="number" min="0" data-k="vol" value="${p.vol}"></label>
+   <button class="noprint" data-act="dup" title="Duplicar">⧉</button>
+   <button class="noprint x" data-act="del" title="Remover">✕</button>
+  </div>
+  <div class="cols">
+   ${['leg','nov'].map(w=>`<div class="col"><h3>${w==='leg'?'Legado (antes)':'Sistema novo (depois)'} <span class="tag">${w==='leg'?'baseline':'meta/real'}</span></h3>
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+     ${fld('Min. por item (toque humano)'+(cliOn(p)?' · via cliques':''),w+'.t',cliOn(p)?+(effT(p,w)).toFixed(2):p[w].t,'number',cliOn(p)?'disabled':'')}
+     ${fld('% itens sem toque humano',w+'.auto',p[w].auto)}
+     ${fld('% itens com retrabalho',w+'.err',p[w].err)}
+     ${fld('Min. por retrabalho',w+'.rw',p[w].rw)}
+    </div></div>`).join('')}
+   <div class="col"><h3>Cliques <span class="tag">opcional</span></h3>
+    <label style="display:flex;gap:6px;align-items:center;font-weight:400"><input type="checkbox" style="width:auto;margin:0" data-k="cli.on" ${p.cli&&p.cli.on?'checked':''}> Estimar minutos por item a partir dos cliques</label>
+    <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:8px">
+     ${fld('Cliques por item (legado)','cli.l',p.cli.l)}
+     ${fld('Cliques por item (novo)','cli.n',p.cli.n)}
+    </div>
+    ${fld('Segundos por clique (medido em amostra)','cli.seg',p.cli.seg,'number','style="margin-bottom:6px"')}
+    <div data-chk class="hint" style="margin:6px 0 0"></div>
+   </div>
+   <div class="col"><h3>Evidência do baseline</h3>
+    <label>Como foi medido?<select data-k="fonte">${Object.entries(FONTES).map(([k,v])=>`<option value="${k}" ${p.fonte===k?'selected':''}>${v.n} (confiança ${v.f*100}%)</option>`).join('')}</select></label>
+    <label style="margin-top:8px">Amostra / período / fonte<input data-k="amostra" value="${esc(p.amostra)}" placeholder="ex.: 200 itens, jan–mar, relatório X"></label>
+    <label style="margin-top:8px">Observações<input data-k="obs" value="${esc(p.obs)}"></label>
+   </div>
+  </div>
+ </div>`).join('')||'<p class="hint">Nenhum processo. Adicione um para começar.</p>';
+}
+
+function renderFeats(){
+ const opts=S.procs.map(p=>p.nome);
+ $('#feats').innerHTML=(S.feats||[]).map((f,i)=>`<div class="proc feat" data-i="${i}">
+  <div class="head">
+   <label>Feature<input data-f="nome" value="${esc(f.nome)}"></label>
+   <label>Processo afetado<select data-f="proc">${opts.map(o=>`<option ${o===f.proc?'selected':''}>${esc(o)}</option>`).join('')}${opts.includes(f.proc)?'':`<option selected>${esc(f.proc)}</option>`}</select></label>
+   <label style="flex:0 0 auto;display:flex;gap:5px;align-items:center;font-weight:400;padding-bottom:9px"><input type="checkbox" style="width:auto;margin:0" data-f="on" ${f.on?'checked':''}> Ativa</label>
+   <button class="noprint x" data-fdel title="Remover">✕</button>
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+   ${['dAuto|+ pp de itens sem toque','dTempo|− % de minutos por item','dErr|− pp de retrabalho','custo|Custo único da feature (R$)'].map(x=>{const[k,l]=x.split('|');return `<label>${l}<input type="number" step="any" min="0" data-f="${k}" value="${+f[k]||0}"></label>`}).join('')}
+  </div>
+  <div data-fr class="hint" style="margin:8px 0 0"></div>
+ </div>`).join('')||'<p class="hint">Nenhuma feature. Adicione uma para simular.</p>';
+}
+function renderFeatRes(){
+ const F=featCalc(S);
+ document.querySelectorAll('.feat').forEach((el,i)=>{const r=F.rows[i],d=el.querySelector('[data-fr]');if(!r||!d)return;
+  d.innerHTML=r.miss?'⚠ Processo não encontrado: escolha um processo na lista.':`Ganho incremental: <b>${brl(r.inc)}/mês</b> (${brl(r.inc*12)}/ano) · ${r.pb!==null?'payback da feature: <b>'+num(r.pb,1)+' meses</b>':'sem retorno com os efeitos informados'}`;});
+ const rk=F.rows.filter(r=>!r.miss).map(r=>({l:r.f.nome+(r.f.on?'':' (inativa)'),v:r.inc,c:r.f.on?'var(--pri)':'var(--mut)'})).sort((a,b)=>b.v-a.v);
+ const baseAnual=F.base.mensal*12;
+ $('#featRes').innerHTML=rk.length?`<h3>Ranking por ganho incremental (R$/mês)</h3>${bars(rk,brl)}
+  <div class="kpis" style="margin-top:12px"><div class="kpi hl"><span>Ganho adicional das features ativas</span><b>${brl(F.comb*12)}/ano</b><span>${brl(F.comb)}/mês · efeito combinado</span></div>
+  <div class="kpi"><span>Custo total das features ativas</span><b>${brl(F.custo)}</b><span>${F.comb>0?'payback simples: '+num(F.custo/F.comb,1)+' meses':'—'}</span></div>
+  <div class="kpi"><span>Ganho anual total com features</span><b>${brl(baseAnual+F.comb*12)}</b><span>vs. ${brl(baseAnual)} sem as features</span></div></div>
+  <p class="hint" style="margin-top:8px">O efeito combinado não é a soma do ranking: features no mesmo processo se sobrepõem. Payback simples = custo ÷ ganho mensal em regime, sem rampa.</p>`:'';
+}
+
+/* ---------- resultados ---------- */
+function bars(items,fmt){
+ const mx=Math.max(1,...items.map(i=>Math.abs(i.v)));
+ return items.map(i=>`<div class="hb"><span>${esc(i.l)}</span><div class="t"><i style="width:${Math.abs(i.v)/mx*100}%;background:${i.c}"></i></div><span class="v">${fmt(i.v)}</span></div>`).join('');
+}
+function curvaSVG(pts,payback){
+ const W=700,Hh=240,pl=64,pr=14,pt=14,pb=28;
+ const xs=pts.map(p=>p.m),ys=pts.map(p=>p.cum);
+ const mn=Math.min(0,...ys),mx=Math.max(0,...ys),rng=(mx-mn)||1;
+ const X=m=>pl+(m/xs[xs.length-1])*(W-pl-pr),Y=v=>pt+(1-(v-mn)/rng)*(Hh-pt-pb);
+ const path=pts.map((p,i)=>(i?'L':'M')+X(p.m).toFixed(1)+' '+Y(p.cum).toFixed(1)).join('');
+ const ticks=[mn,mn+rng/2,mx].map(v=>`<g><line x1="${pl}" x2="${W-pr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${pl-6}" y="${Y(v)+4}" text-anchor="end" font-size="11" fill="var(--mut)">${brl(v)}</text></g>`).join('');
+ const mt=[0,Math.round(xs[xs.length-1]/2),xs[xs.length-1]].map(m=>`<text x="${X(m)}" y="${Hh-8}" text-anchor="middle" font-size="11" fill="var(--mut)">mês ${m}</text>`).join('');
+ const pb_=payback!==null?`<circle cx="${X(payback)}" cy="${Y(0)}" r="5" fill="var(--ok)"/><text x="${X(payback)}" y="${Y(0)-9}" text-anchor="middle" font-size="12" fill="var(--ok)" font-weight="700">payback: mês ${payback}</text>`:'';
+ return `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Fluxo acumulado">${ticks}<line x1="${pl}" x2="${W-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--mut)" stroke-dasharray="4 3"/><path d="${path}" fill="none" stroke="var(--pri)" stroke-width="2.5"/>${pb_}${mt}</svg>`;
+}
+function updateChecks(R){
+ document.querySelectorAll('#procs .proc').forEach((el,i)=>{const x=R.procs[i],c=x.p.cli,d=el.querySelector('[data-chk]');if(!d)return;
+  let m='Cliques medem esforço, não tempo: informe os segundos por clique medidos em amostra.';
+  if(c.l>0&&c.n>0&&!cliOn(x.p)){
+   const a=x.p.leg.t*60/c.l,b=x.p.nov.t*60/c.n;
+   m=`Segundos por clique implícitos: legado ${num(a,1)} s · novo ${num(b,1)} s.`+(a>0&&Math.abs(b/a-1)>.3?' ⚠ O tempo por clique mudou muito (espera, leitura ou decisão): revise os tempos ou os cliques.':' Coerente.');
+  }else if(cliOn(x.p))m=`Minutos calculados: legado ${num(x.tL,2)} · novo ${num(x.tN,2)} (cliques × ${c.seg} s).`;
+  d.textContent=m;d.style.color=m.includes('⚠')?'var(--warn)':'';});
+}
+function renderRes(){
+ const R=calc(S);updateChecks(R);renderFeatRes();
+ $('#kpis').innerHTML=[
+  ['Ganho mensal líquido (regime)',brl(R.mensal),1,'mão de obra + Δ sistema'],
+  ['Ganho anual',brl(R.mensal*12),1,''],
+  ['Horas liberadas/mês',num(R.adj,0)+' h',0,`${num(R.fte,1)} FTE equivalentes`],
+  ['Redução de esforço',pct(R.reducao),0,`${num(R.H0,0)} h → ${num(R.H3,0)} h (bruto)`],
+  ['Payback',R.payback!==null?R.payback+' meses':'> '+R.H+' meses',0,'sobre investimento '+brl(R.inv)],
+  ['ROI em '+R.H+' meses',R.roi!==null?num(R.roi,0)+'%':'—',0,'resultado acumulado: '+brl(R.cum)]
+ ].map(([l,v,h,s])=>`<div class="kpi ${h?'hl':''}"><span>${l}</span><b>${v}</b><span>${s}</span></div>`).join('');
+ const al=[];
+ if(R.baseEst>.4)al.push(['w',`${num(R.baseEst*100,0)}% do ganho em R$ depende de processos com baseline por <b>estimativa</b>. Meça uma amostra antes de apresentar o número como firme.`]);
+ if(R.sysDelta<0)al.push(['w',`O sistema novo custa ${brl(-R.sysDelta)}/mês a mais que o legado; isso reduz o ganho líquido.`]);
+ if(R.mensal<=0)al.push(['w','Ganho líquido ≤ 0 com as premissas atuais: o novo sistema não se paga.']);
+ if(R.mensal>0&&R.baseEst<=.4)al.push(['o','Ganho sustentado por evidências com boa confiança (amostra ou logs).']);
+ $('#alertas').innerHTML=al.map(([c,t])=>`<div class="alert ${c}">${t}</div>`).join('');
+
+ const A=R.alav;
+ $('#porAlavanca').innerHTML=bars([
+  {l:'Automação (sem toque)',v:A.auto,c:'var(--c1)'},{l:'Tempo por item',v:A.tempo,c:'var(--c2)'},
+  {l:'Menos retrabalho',v:A.ret,c:'var(--c3)'},{l:'Δ custo do sistema',v:R.sysDelta,c:R.sysDelta<0?'var(--bad)':'var(--mut)'}],brl)
+  +`<p class="hint" style="margin-top:10px">Valores mensais, já com fator de confiança e realização. A decomposição é sequencial (automação → tempo → retrabalho), por isso soma exata ao total.</p>`;
+ $('#porProcesso').innerHTML=bars(R.procs.map(x=>({l:x.p.nome,v:x.rs,c:'var(--pri)'})).sort((a,b)=>b.v-a.v),brl);
+ $('#porNucleo').innerHTML=bars(R.nucleos.map(q=>({l:q.k,v:q.rs,c:'var(--c2)'})).sort((a,b)=>b.v-a.v),brl)+R.nucleos.map(q=>`<p class="hint" style="margin:8px 0 0"><b>${esc(q.k)}</b>: ${q.n} processos · ${num(q.H0,0)} h → ${num(q.H3,0)} h (bruto) · ${num(q.adj,0)} h defensáveis</p>`).join('');
+ $('#curva').innerHTML=curvaSVG(R.pts,R.payback);
+
+ const f=n=>num(n,0);
+ const prow=x=>`<tr><td>${esc(x.p.nome)}<br><small style="color:var(--mut)">${FONTES[x.p.fonte].n}${x.p.amostra?' — '+esc(x.p.amostra):''}</small></td><td>${f(x.v)}</td><td>${f(x.H0)}</td><td>${f(x.H3)}</td><td>${f(x.bruto)}</td><td>${x.conf*100}%</td><td>${f(x.adj)}</td><td>${brl(x.rs)}</td></tr>`;
+ $('#tabela').innerHTML=`<table><thead><tr><th>Processo</th><th>Vol/mês</th><th>h legado</th><th>h novo</th><th>Ganho bruto (h)</th><th>Confiança</th><th>Ganho defensável (h)</th><th>R$/mês</th></tr></thead><tbody>
+ ${R.nucleos.map(q=>`<tr style="background:var(--bg);font-weight:700"><td>${esc(q.k)} (subtotal)</td><td></td><td>${f(q.H0)}</td><td>${f(q.H3)}</td><td>${f(q.bruto)}</td><td></td><td>${f(q.adj)}</td><td>${brl(q.rs)}</td></tr>`+R.procs.filter(x=>(x.p.nucleo||'Sem núcleo')===q.k).map(prow).join('')).join('')}
+ </tbody><tfoot><tr><td>Total</td><td></td><td>${f(R.H0)}</td><td>${f(R.H3)}</td><td>${f(R.bruto)}</td><td></td><td>${f(R.adj)}</td><td>${brl(R.laborRs)}</td></tr></tfoot></table>`;
+
+ const g=S.g;
+ $('#memoria').innerHTML=`<div class="mem">Horas/mês = Volume × [ (1 − %sem toque) × min/item + %retrabalho × min/retrabalho ] ÷ 60
+Ganho bruto = Horas legado − Horas novo
+Ganho defensável (h) = Ganho bruto × Confiança da fonte × Realização (${g.adocao}%)
+Ganho (R$) = Ganho defensável × Custo/hora (${brl(+g.custoHora)}) + (Custo sistema legado − Custo sistema novo)
+Rampa: ganho de mão de obra cresce linearmente até o mês ${g.rampa}; investimento (${brl(+g.invest)}) lançado no mês 0.</div>`+
+ R.procs.map(x=>{const p=x.p,L=p.leg,N=p.nov;
+  return `<h3 style="margin-top:14px">${esc(p.nome)}</h3><div class="mem">Legado: ${f(x.v)} × [ (1−${L.auto/100}) × ${num(x.tL,2)} + ${L.err/100} × ${L.rw} ] ÷ 60 = ${num(x.H0,1)} h
+Novo:   ${f(x.v)} × [ (1−${N.auto/100}) × ${num(x.tN,2)} + ${N.err/100} × ${N.rw} ] ÷ 60 = ${num(x.H3,1)} h
+Bruto = ${num(x.bruto,1)} h  → automação ${num(x.hb.auto,1)} h | tempo/item ${num(x.hb.tempo,1)} h | retrabalho ${num(x.hb.ret,1)} h
+Defensável = ${num(x.bruto,1)} × ${x.conf} × ${g.adocao/100} = ${num(x.adj,1)} h × ${brl(+g.custoHora)} = ${brl(x.rs)}/mês</div>`}).join('');
+ return R;
+}
+
+/* ---------- eventos ---------- */
+function setPath(o,path,v){const ks=path.split('.');let t=o;ks.slice(0,-1).forEach(k=>t=t[k]);t[ks.at(-1)]=v}
+document.addEventListener('change',e=>{if(e.target.dataset.k==='nucleo'){renderProcs();renderRes()}});
+document.addEventListener('input',e=>{
+ const el=e.target;
+ if(el.dataset.f){const f=S.feats[el.closest('.feat').dataset.i];
+  f[el.dataset.f]=el.type==='checkbox'?el.checked:el.type==='number'?(parseFloat(el.value)||0):el.value;
+  save();renderFeatRes();return}
+ if(el.dataset.g){S.g[el.dataset.g]=el.type==='number'?(parseFloat(el.value)||0):el.value}
+ else if(el.dataset.k){const i=el.closest('.proc').dataset.i;
+  if(el.dataset.k==='nome'){const old=S.procs[i].nome;S.feats.forEach(f=>{if(f.proc===old)f.proc=el.value});setTimeout(renderFeats,0)}
+  setPath(S.procs[i],el.dataset.k,el.type==='checkbox'?el.checked:el.type==='number'?(parseFloat(el.value)||0):el.value);
+  if(el.type==='checkbox'){save();renderProcs();renderRes();return}}
+ else return;
+ save();renderRes();
+});
+$('#procs').addEventListener('click',e=>{
+ const b=e.target.closest('[data-act]');if(!b)return;
+ const i=+b.closest('.proc').dataset.i;
+ if(b.dataset.act==='del'){if(!confirm('Remover este processo?'))return;S.procs.splice(i,1)}
+ else S.procs.splice(i+1,0,JSON.parse(JSON.stringify(S.procs[i])));
+ save();renderProcs();renderRes();
+});
+$('#addFeat').onclick=()=>{S.feats.push({nome:'Nova feature',proc:(S.procs[0]||{}).nome||'',dAuto:0,dTempo:10,dErr:0,custo:0,on:true});save();renderFeats();renderRes()};
+$('#feats').addEventListener('click',e=>{const b=e.target.closest('[data-fdel]');if(!b)return;S.feats.splice(+b.closest('.feat').dataset.i,1);save();renderFeats();renderRes()});
+$('#add').onclick=()=>{S.procs.push(PROC_PAD());save();renderProcs();renderRes()};
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+$('#json').onclick=()=>download('ganhos-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(S,null,2),'application/json');
+$('#load').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!d.g||!Array.isArray(d.procs))throw 0;S=d;save();init()}catch{alert('Arquivo inválido.')}});e.target.value=''};
+$('#print').onclick=()=>print();
+$('#exemplo').onclick=()=>{if(confirm('Substituir dados atuais pelo exemplo?')){S=EXEMPLO();save();init()}};
+$('#limpar').onclick=()=>{if(confirm('Zerar todos os processos?')){S.procs=[];save();init()}};
+
+/* ---------- XLSX (gerador mínimo, sem bibliotecas) ---------- */
+const CRC=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return b=>{let c=~0;for(const x of b)c=t[(c^x)&255]^(c>>>8);return ~c>>>0}})();
+function zip(files,mime){
+ const enc=new TextEncoder(),parts=[],cen=[];let off=0;
+ const u16=v=>[v&255,v>>8&255],u32=v=>[v&255,v>>8&255,v>>16&255,v>>24&255];
+ for(const[name,txt]of Object.entries(files)){
+  const nb=enc.encode(name),d=enc.encode(txt),crc=CRC(d);
+  const h=[0x50,0x4b,3,4,...u16(20),...u16(0x800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(d.length),...u32(d.length),...u16(nb.length),...u16(0)];
+  parts.push(new Uint8Array(h),nb,d);
+  cen.push(new Uint8Array([0x50,0x4b,1,2,...u16(20),...u16(20),...u16(0x800),...u16(0),...u16(0),...u16(0x21),...u32(crc),...u32(d.length),...u32(d.length),...u16(nb.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off)]),nb);
+  off+=h.length+nb.length+d.length;
+ }
+ const csz=cen.reduce((a,b)=>a+b.length,0),n=Object.keys(files).length;
+ return new Blob([...parts,...cen,new Uint8Array([0x50,0x4b,5,6,0,0,0,0,...u16(n),...u16(n),...u32(csz),...u32(off),0,0])],{type:mime||'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+const colL=i=>String.fromCharCode(65+i);
+function sheetXml(rows){
+ const x=v=>String(v).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+ return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'+
+ rows.map((r,i)=>`<row r="${i+1}">`+r.map((c,j)=>{
+  if(c===null||c===undefined||c==='')return'';const ref=colL(j)+(i+1);
+  if(c&&typeof c==='object')return`<c r="${ref}"><f>${x(c.f)}</f><v>${c.v}</v></c>`;
+  return typeof c==='number'?`<c r="${ref}"><v>${c}</v></c>`:`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${x(c)}</t></is></c>`;
+ }).join('')+'</row>').join('')+'</sheetData></worksheet>';
+}
+function exportXlsx(){
+ const R=calc(S),g=S.g;
+ const prem=[['Premissa','Valor'],['Iniciativa',g.nome],['Custo/hora (R$)',+g.custoHora],['Horas produtivas por FTE/mês',+g.horasFTE],['Realização do ganho (%)',+g.adocao],['Meses até adoção plena',+g.rampa],['Horizonte (meses)',+g.horizonte],['Investimento único (R$)',+g.invest],['Custo mensal sistema legado (R$)',+g.sysLeg],['Custo mensal sistema novo (R$)',+g.sysNew]];
+ const head=['Processo','Volume/mês','Min/item legado','% sem toque legado','% retrabalho legado','Min/retrabalho legado','Min/item novo','% sem toque novo','% retrabalho novo','Min/retrabalho novo','Fonte do baseline','Amostra / fonte','Observações','Confiança','Horas legado','Horas novo','Ganho bruto (h)','Ganho defensável (h)','Ganho (R$/mês)','Cliques/item legado','Cliques/item novo','Segundos por clique','Minutos via cliques?','Núcleo'];
+ const rows=[head];
+ R.procs.forEach((x,i)=>{const p=x.p,n=i+2,L=p.leg,N=p.nov;
+  rows.push([p.nome,+p.vol,+x.tL.toFixed(4),L.auto,L.err,L.rw,+x.tN.toFixed(4),N.auto,N.err,N.rw,FONTES[p.fonte].n,p.amostra,p.obs,x.conf,
+   {f:`B${n}*((1-D${n}/100)*C${n}+E${n}/100*F${n})/60`,v:x.H0},
+   {f:`B${n}*((1-H${n}/100)*G${n}+I${n}/100*J${n})/60`,v:x.H3},
+   {f:`O${n}-P${n}`,v:x.bruto},
+   {f:`Q${n}*N${n}*Premissas!B5/100`,v:x.adj},
+   {f:`R${n}*Premissas!B3`,v:x.rs},p.cli.l||'',p.cli.n||'',p.cli.seg||'',cliOn(p)?'sim':'não',p.nucleo||'']);
+ });
+ const last=R.procs.length+1;
+ if(R.procs.length)rows.push(['Total','','','','','','','','','','','','','',{f:`SUM(O2:O${last})`,v:R.H0},{f:`SUM(P2:P${last})`,v:R.H3},{f:`SUM(Q2:Q${last})`,v:R.bruto},{f:`SUM(R2:R${last})`,v:R.adj},{f:`SUM(S2:S${last})`,v:R.laborRs}]);
+ const res=[['Indicador','Valor'],['Ganho mensal líquido em regime (R$)',R.mensal],['Ganho anual (R$)',R.mensal*12],['Horas liberadas/mês',R.adj],['FTE equivalentes',R.fte],['Redução de esforço bruta (%)',R.reducao],['Payback (meses)',R.payback===null?'> horizonte':R.payback],['ROI no horizonte (%)',R.roi===null?'':R.roi],['Resultado acumulado no horizonte (R$)',R.cum],[],['Alavanca do ganho (R$/mês)','Valor'],['Automação (sem toque)',R.alav.auto],['Tempo por item',R.alav.tempo],['Menos retrabalho',R.alav.ret],['Δ custo de sistema',R.sysDelta],[],['Fluxo acumulado','R$'],...R.pts.map(p=>['Mês '+p.m,p.cum])];
+ const FC=featCalc(S);
+ const fsh=[['Feature','Processo','Ativa','+pp sem toque','−% min/item','−pp retrabalho','Custo único (R$)','Ganho incremental (R$/mês)','Payback (meses)'],...FC.rows.map(r=>[r.f.nome,r.f.proc,r.f.on?'sim':'não',+r.f.dAuto||0,+r.f.dTempo||0,+r.f.dErr||0,+r.f.custo||0,r.inc,r.pb===null?'':r.pb]),[],['Efeito combinado das features ativas (R$/mês)',FC.comb],['Custo total das features ativas (R$)',FC.custo]];
+ const sheets=[['Resumo',res],['Premissas',prem],['Processos',rows],['Features',fsh]];
+ const files={
+  '[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>',
+  '_rels/.rels':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+  'xl/workbook.xml':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+sheets.map(([n],i)=>`<sheet name="${n}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets><calcPr fullCalcOnLoad="1"/></workbook>',
+  'xl/_rels/workbook.xml.rels':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')+'</Relationships>'};
+ sheets.forEach(([,r],i)=>files[`xl/worksheets/sheet${i+1}.xml`]=sheetXml(r));
+ const a=document.createElement('a');a.href=URL.createObjectURL(zip(files));a.download='ganhos-'+new Date().toISOString().slice(0,10)+'.xlsx';a.click();URL.revokeObjectURL(a.href);
+}
+$('#xlsx').onclick=exportXlsx;
+
+/* ---------- PPTX para diretoria (gerador mínimo) ---------- */
+function exportPptx(){
+ const R=calc(S),g=S.g,E=v=>Math.round(v*9525);
+ const X=v=>String(v).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+ const NS='xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
+ const XH='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+ const C={ink:'1C2230',mut:'667085',pri:'2457D6',ok:'12805C',okbg:'E4F5EE',bg:'F5F6F8',line:'E3E6EC',navy:'1B2A4A',c2:'12A37F',c3:'E08A1E',bad:'B42318',white:'FFFFFF'};
+ let nid=2;
+ const runs=t=>t.map(r=>`<a:p><a:pPr algn="${r.al||'l'}"/><a:r><a:rPr lang="pt-BR" sz="${(r.sz||16)*100}" b="${r.b?1:0}"><a:solidFill><a:srgbClr val="${r.c||C.ink}"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>${X(r.t)}</a:t></a:r></a:p>`).join('');
+ const sh=o=>{const id=nid++;
+  const fill=o.fill?`<a:solidFill><a:srgbClr val="${o.fill}"/></a:solidFill>`:'<a:noFill/>';
+  const ln=o.line?`<a:ln w="12700"><a:solidFill><a:srgbClr val="${o.line}"/></a:solidFill></a:ln>`:'<a:ln><a:noFill/></a:ln>';
+  const geom=o.path?`<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l="0" t="0" r="r" b="b"/><a:pathLst><a:path w="${E(o.w)}" h="${E(o.h)}" fill="none">${o.path.map((q,i)=>`<a:${i?'lnTo':'moveTo'}><a:pt x="${E(q[0])}" y="${E(q[1])}"/></a:${i?'lnTo':'moveTo'}>`).join('')}</a:path></a:pathLst></a:custGeom>`:`<a:prstGeom prst="${o.geom||'rect'}"><a:avLst/></a:prstGeom>`;
+  const lnp=o.path?`<a:ln w="38100"><a:solidFill><a:srgbClr val="${o.stroke||C.pri}"/></a:solidFill></a:ln>`:ln;
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="Forma ${id}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${E(o.x)}" y="${E(o.y)}"/><a:ext cx="${E(o.w)}" cy="${E(o.h)}"/></a:xfrm>${geom}${o.path?'<a:noFill/>':fill}${lnp}</p:spPr><p:txBody><a:bodyPr wrap="square" lIns="${o.fill?91440:0}" tIns="45720" rIns="${o.fill?91440:0}" bIns="45720" anchor="${o.anchor||'t'}"><a:normAutofit/></a:bodyPr><a:lstStyle/>${o.text?runs(o.text):'<a:p><a:endParaRPr lang="pt-BR"/></a:p>'}</p:txBody></p:sp>`};
+ const txt=(x,y,w,h,t,o={})=>sh({x,y,w,h,text:t,...o});
+ const mk=(n,body,bg)=>`${XH}<p:sld ${NS}><p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="${bg||C.white}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>${body}</p:spTree></p:cSld></p:sld>`;
+ const frame=(n,title)=>{nid=2;return txt(60,32,1160,90,[{t:title,sz:28,b:1}],{anchor:'ctr'})+sh({x:60,y:124,w:80,h:4,fill:C.pri})};
+ const foot=n=>txt(60,676,1000,28,[{t:g.nome,sz:11,c:C.mut}])+txt(1120,676,100,28,[{t:String(n),sz:11,c:C.mut,al:'r'}]);
+ const hbars=(x,y,w,items,fmt,rowH=44)=>items.map((it,i)=>{
+  const mx=Math.max(1,...items.map(q=>Math.abs(q.v))),bw=Math.max(2,Math.abs(it.v)/mx*(w-330)),yy=y+i*rowH;
+  return txt(x,yy,200,rowH-8,[{t:it.l,sz:14}],{anchor:'ctr'})+sh({x:x+205,y:yy+6,w:bw,h:rowH-20,fill:it.c})+txt(x+205+bw+8,yy,130,rowH-8,[{t:fmt(it.v),sz:14,b:1}],{anchor:'ctr'});
+ }).join('');
+ const slides=[];
+ const anual=R.mensal*12,pbT=R.payback!==null?`${R.payback} meses`:`> ${R.H} meses`;
+ /* 1 capa */
+ nid=2;slides.push(mk(1,sh({x:0,y:0,w:1280,h:720,fill:C.navy})+sh({x:80,y:250,w:100,h:6,fill:C.c2})+
+  txt(80,280,1120,120,[{t:g.nome,sz:44,b:1,c:C.white}],{anchor:'t'})+
+  txt(80,410,1120,100,[{t:`Ganhos esperados vs. sistema legado — ${brl(anual)} por ano, payback em ${pbT}`,sz:22,c:'C9D6F5'}])+
+  txt(80,640,1120,30,[{t:'Apresentação à Diretoria · '+new Date().toLocaleDateString('pt-BR'),sz:14,c:'9FB3E6'}]),C.navy));
+ /* 2 resumo */
+ const k=[[brl(anual),'Ganho líquido anual (regime)'],[num(R.adj,0)+' h/mês',`Horas liberadas · ${num(R.fte,1)} FTE equivalentes`],[pbT,'Payback sobre '+brl(R.inv)],[R.roi!==null?num(R.roi,0)+'%':'—',`ROI em ${R.H} meses`]];
+ slides.push(mk(2,frame(2,`O novo sistema gera ${brl(anual)} por ano e se paga em ${pbT}`)+
+  k.map((q,i)=>sh({x:60+i*295,y:160,w:275,h:150,fill:i===0?C.okbg:C.bg,geom:'roundRect'})+txt(75+i*295,172,245,70,[{t:q[0],sz:30,b:1,c:i===0?C.ok:C.ink}],{anchor:'ctr'})+txt(75+i*295,246,245,56,[{t:q[1],sz:13,c:C.mut}])).join('')+
+  txt(60,350,1160,300,[
+   {t:`• Esforço da operação cai ${num(R.reducao,0)}%: de ${num(R.H0,0)} h para ${num(R.H3,0)} h por mês (valor bruto, antes dos fatores de confiança).`,sz:18},
+   {t:'',sz:8},
+   {t:`• O valor apresentado já considera ${g.adocao}% de realização do ganho e fator de confiança por fonte de medição.`,sz:18},
+   {t:'',sz:8},
+   {t:`• Diferença de custo de sistema (legado vs. novo): ${brl(R.sysDelta)}/mês. Investimento único: ${brl(R.inv)}.`,sz:18},
+   {t:'',sz:8},
+   {t:`• Resultado acumulado em ${R.H} meses: ${brl(R.cum)}.`,sz:18,b:1}])+foot(slides.length+1)));
+ /* 3 onde está o ganho */
+ const A=R.alav,al=[{l:'Automação (sem toque)',v:A.auto,c:C.pri},{l:'Menor tempo por item',v:A.tempo,c:C.c2},{l:'Menos retrabalho',v:A.ret,c:C.c3},{l:'Δ custo de sistema',v:R.sysDelta,c:R.sysDelta<0?C.bad:C.mut}];
+ const topA=[...al.slice(0,3)].sort((a,b)=>b.v-a.v)[0],totA=A.auto+A.tempo+A.ret||1;
+ const pr=R.procs.map(x=>({l:x.p.nome,v:x.rs,c:C.pri})).sort((a,b)=>b.v-a.v).slice(0,7);
+ slides.push(mk(3,frame(3,`${topA.l} concentra ${num(topA.v/totA*100,0)}% do ganho de mão de obra`)+
+  txt(60,150,560,28,[{t:'Por alavanca (R$/mês)',sz:16,b:1,c:C.mut}])+hbars(60,185,560,al,brl)+
+  txt(660,150,560,28,[{t:'Por processo (R$/mês)',sz:16,b:1,c:C.mut}])+hbars(660,185,560,pr,brl)+
+  txt(60,520,1160,120,[{t:'Cada real de ganho vem de uma causa mensurável: mais itens resolvidos sem intervenção humana, menos minutos por item ou menos retrabalho. Se nenhuma dessas alavancas se mover, o ganho não existe.',sz:15,c:C.mut}])+foot(slides.length+1)));
+ /* 4 núcleos */
+ const nu=[...R.nucleos].sort((a,b)=>b.rs-a.rs).map(q=>({l:q.k,v:q.rs,c:C.c2}));
+ slides.push(mk(4,frame(4,R.nucleos.length>1?`Ganho por núcleo: ${nu[0].l} lidera com ${brl(nu[0].v)}/mês`:'Ganho por núcleo')+
+  hbars(60,170,1000,nu,brl,56)+
+  R.nucleos.map((q,i)=>txt(60,170+nu.length*56+20+i*34,1160,32,[{t:`${q.k}: ${q.n} processos · ${num(q.H0,0)} h → ${num(q.H3,0)} h por mês (bruto) · ${num(q.adj,0)} h defensáveis`,sz:14,c:C.mut}])).join('')+foot(slides.length+1)));
+ /* 5 evidências */
+ const estPct=R.baseEst*100;
+ const hdr=['Processo','Como foi medido','Bruto (h)','Defensável (h)','R$/mês'],cx=[60,330,720,860,1010],cw=[260,380,130,140,140];
+ const tr=R.procs.slice(0,9).map((x,i)=>{const y=210+i*40;return [x.p.nome,FONTES[x.p.fonte].n+(x.p.amostra?' — '+x.p.amostra:''),num(x.bruto,0),num(x.adj,0),brl(x.rs)].map((c,j)=>txt(cx[j],y,cw[j],38,[{t:c,sz:j===1?12:14,al:j>1?'r':'l'}],{anchor:'ctr'})).join('')+sh({x:60,y:y+39,w:1090,h:1,fill:C.line})}).join('');
+ slides.push(mk(5,frame(5,estPct>40?`${num(estPct,0)}% do ganho ainda depende de estimativas — plano de validação necessário`:'O ganho está sustentado por medições, não por estimativas')+
+  hdr.map((h,j)=>txt(cx[j],170,cw[j],36,[{t:h,sz:13,b:1,c:C.mut,al:j>1?'r':'l'}],{anchor:'ctr'})).join('')+sh({x:60,y:206,w:1090,h:2,fill:C.ink})+tr+
+  txt(60,600,1160,60,[{t:`Ganho bruto ${num(R.bruto,0)} h → defensável ${num(R.adj,0)} h/mês após fator de confiança (estimativa 60%, amostra 85%, logs 100%) e ${g.adocao}% de realização.`,sz:14,c:C.mut}])+foot(slides.length+1)));
+ /* features */
+ const FC=featCalc(S),fr=FC.rows.filter(r=>!r.miss&&r.f.on&&r.inc>0).sort((a,b)=>b.inc-a.inc).slice(0,8);
+ if(fr.length)slides.push(mk(0,frame(0,`Próximas features podem somar ${brl(FC.comb*12)} por ano ao caso de negócio`)+
+  hbars(60,160,1100,fr.map(r=>({l:r.f.nome,v:r.inc,c:C.c3})),brl,52)+
+  txt(60,160+fr.length*52+14,1160,60,[{t:`Efeito combinado das features ativas: ${brl(FC.comb)}/mês, com custo total de ${brl(FC.custo)}${FC.comb>0?` (payback simples de ${num(FC.custo/FC.comb,1)} meses)`:''}. Features no mesmo processo se sobrepõem; os valores individuais não somam o total.`,sz:14,c:C.mut}])+foot(slides.length+1)));
+ /* 5 curva */
+ const cx0=120,cy0=170,cw0=1060,ch0=410,ys=R.pts.map(q=>q.cum),mn=Math.min(0,...ys),mx=Math.max(0,...ys),rg=(mx-mn)||1,mM=R.pts[R.pts.length-1].m;
+ const px=m=>m/mM*cw0,py=v=>(1-(v-mn)/rg)*ch0;
+ const grid=[mn,mn+rg/2,mx].map(v=>sh({x:cx0,y:cy0+py(v),w:cw0,h:1,fill:C.line})+txt(10,cy0+py(v)-14,105,28,[{t:brl(v),sz:11,c:C.mut,al:'r'}],{anchor:'ctr'})).join('');
+ const pbm=R.payback!==null?sh({x:cx0+px(R.payback)-8,y:cy0+py(0)-8,w:16,h:16,fill:C.ok,geom:'ellipse'})+txt(cx0+px(R.payback)-100,cy0+py(0)-48,200,30,[{t:'Payback: mês '+R.payback,sz:14,b:1,c:C.ok,al:'ctr'}]):'';
+ slides.push(mk(6,frame(6,R.payback!==null?`Investimento de ${brl(R.inv)} recuperado no mês ${R.payback}`:`Com as premissas atuais, o investimento não se paga em ${R.H} meses`)+grid+
+  sh({x:cx0,y:cy0+py(0),w:cw0,h:2,fill:C.mut})+
+  sh({x:cx0,y:cy0,w:cw0,h:ch0,path:R.pts.map(q=>[px(q.m),py(q.cum)])})+pbm+
+  [0,Math.round(mM/2),mM].map(m=>txt(cx0+px(m)-50,cy0+ch0+6,100,26,[{t:'mês '+m,sz:12,c:C.mut,al:'ctr'}])).join('')+
+  txt(60,620,1160,40,[{t:`Rampa de adoção de ${g.rampa} meses. Resultado acumulado em ${R.H} meses: ${brl(R.cum)}.`,sz:14,c:C.mut}])+foot(slides.length+1)));
+ /* 6 premissas e próximos passos */
+ const bl=(a,sz=15)=>a.map(t=>({t:'• '+t,sz})).flatMap(q=>[q,{t:'',sz:6}]);
+ slides.push(mk(7,frame(7,'Premissas, riscos e como vamos comprovar o ganho')+
+  txt(60,150,540,30,[{t:'Premissas-chave',sz:18,b:1,c:C.pri}])+
+  txt(60,185,540,440,bl([`Custo/hora da equipe: ${brl(+g.custoHora)}`,`Realização do ganho: ${g.adocao}% (capacidade → benefício)`,`Adoção plena em ${g.rampa} meses`,`Custo mensal do sistema: ${brl(+g.sysLeg)} (legado) → ${brl(+g.sysNew)} (novo)`,`Horizonte da análise: ${g.horizonte} meses`,'Horas liberadas só viram caixa com realocação, redução de extras/terceiros ou absorção de volume.']))+
+  txt(660,150,560,30,[{t:'Próximos passos',sz:18,b:1,c:C.pri}])+
+  txt(660,185,560,440,bl(['Medir por amostra/log os processos hoje baseados em estimativa.','Acompanhar 30/60/90 dias após o go-live e trocar premissas "novo" por valores reais.','Definir o destino das horas liberadas (realocação, absorção de volume ou redução de custo).','Revisar este caso de negócio com a Diretoria no mês '+Math.min(R.H,Math.max(3,g.rampa+3))+'.']))+foot(slides.length+1)));
+ const n=slides.length;
+ const f={
+  '[Content_Types].xml':`${XH}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>${slides.map((_,i)=>`<Override PartName="/ppt/slides/slide${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join('')}</Types>`,
+  '_rels/.rels':`${XH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/></Relationships>`,
+  'ppt/presentation.xml':`${XH}<p:presentation ${NS}><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst><p:sldIdLst>${slides.map((_,i)=>`<p:sldId id="${256+i}" r:id="rId${i+2}"/>`).join('')}</p:sldIdLst><p:sldSz cx="12192000" cy="6858000"/><p:notesSz cx="6858000" cy="9144000"/></p:presentation>`,
+  'ppt/_rels/presentation.xml.rels':`${XH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>${slides.map((_,i)=>`<Relationship Id="rId${i+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i+1}.xml"/>`).join('')}</Relationships>`,
+  'ppt/slideMasters/slideMaster1.xml':`${XH}<p:sldMaster ${NS}><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld><p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/><p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst></p:sldMaster>`,
+  'ppt/slideMasters/_rels/slideMaster1.xml.rels':`${XH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>`,
+  'ppt/slideLayouts/slideLayout1.xml':`${XH}<p:sldLayout ${NS} type="blank"><p:cSld name="Em branco"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/></p:spTree></p:cSld></p:sldLayout>`,
+  'ppt/slideLayouts/_rels/slideLayout1.xml.rels':`${XH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/></Relationships>`,
+  'ppt/theme/theme1.xml':`${XH}<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Ganhos"><a:themeElements><a:clrScheme name="G"><a:dk1><a:srgbClr val="1C2230"/></a:dk1><a:lt1><a:srgbClr val="FFFFFF"/></a:lt1><a:dk2><a:srgbClr val="1B2A4A"/></a:dk2><a:lt2><a:srgbClr val="F5F6F8"/></a:lt2><a:accent1><a:srgbClr val="2457D6"/></a:accent1><a:accent2><a:srgbClr val="12A37F"/></a:accent2><a:accent3><a:srgbClr val="E08A1E"/></a:accent3><a:accent4><a:srgbClr val="B42318"/></a:accent4><a:accent5><a:srgbClr val="667085"/></a:accent5><a:accent6><a:srgbClr val="6F93F5"/></a:accent6><a:hlink><a:srgbClr val="2457D6"/></a:hlink><a:folHlink><a:srgbClr val="667085"/></a:folHlink></a:clrScheme><a:fontScheme name="G"><a:majorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme><a:fmtScheme name="G"><a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst><a:lnStyleLst><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="9525"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst><a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst><a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst></a:fmtScheme></a:themeElements></a:theme>`};
+ slides.forEach((x,i)=>{f[`ppt/slides/slide${i+1}.xml`]=x;f[`ppt/slides/_rels/slide${i+1}.xml.rels`]=`${XH}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/></Relationships>`});
+ const a=document.createElement('a');a.href=URL.createObjectURL(zip(f,'application/vnd.openxmlformats-officedocument.presentationml.presentation'));a.download='apresentacao-diretoria-'+new Date().toISOString().slice(0,10)+'.pptx';a.click();URL.revokeObjectURL(a.href);
+}
+$('#pptx').onclick=exportPptx;
+function init(){S.feats=S.feats||[];S.procs.forEach(p=>{p.cli=p.cli||{on:false,seg:4,l:0,n:0}});renderGlobais();renderProcs();renderFeats();renderRes()}
+init();
+</script>
+</body>
+</html>
