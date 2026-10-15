@@ -91,6 +91,14 @@ details summary{cursor:pointer;font-weight:600}
 </section>
 
 <section class="card">
+  <h2>Simulador de features — o que mais aumenta o ganho</h2>
+  <p class="hint">Cada feature altera o cenário "novo" de um processo (mais itens sem toque, menos minutos por item, menos retrabalho). O ganho incremental já considera confiança da fonte e realização. Os resultados principais acima <b>não</b> mudam: aqui é uma simulação.</p>
+  <div id="feats"></div>
+  <div class="bar noprint"><button class="p" id="addFeat">+ Adicionar feature</button></div>
+  <div id="featRes" style="margin-top:14px"></div>
+</section>
+
+<section class="card">
   <h2>4. Comprovação — memória de cálculo</h2>
   <p class="hint">Tabela detalhada + fórmulas aplicadas. É o material para defender o ganho com a diretoria e para auditar depois do go-live.</p>
   <div class="sc" id="tabela"></div>
@@ -154,6 +162,14 @@ const EXEMPLO=()=>{
   P(LQ,'Liquidação de roubo e furto',900,[55,0,12,45],[38,0,6,45],'amostra','40 casos acompanhados','Checklist e documentos digitais'),
   P(LQ,'Liquidação de perda total',700,[70,0,14,50],[48,0,7,50],'amostra','35 casos acompanhados','Avaliação e salvado no mesmo fluxo'),
   P(LQ,'Pagamento em dinheiro (acordo em colisão e sinistros sem casco)',3200,[18,0,9,25],[8,30,3,25],'estimativa','','Pagamento e conciliação integrados')
+ ],
+ feats:[
+  {nome:'Aprovação automática dentro da alçada',proc:'Aprovação e alçadas',dAuto:25,dTempo:0,dErr:0,custo:30000,on:true},
+  {nome:'OCR e extração de dados dos documentos',proc:'Análise documental',dAuto:0,dTempo:20,dErr:3,custo:45000,on:true},
+  {nome:'Fast track para sinistros simples',proc:'Triagem e roteamento',dAuto:15,dTempo:0,dErr:0,custo:20000,on:true},
+  {nome:'Status automático ao cliente',proc:'Atendimento relacionado ao sinistro',dAuto:0,dTempo:0,dErr:5,custo:12000,on:true},
+  {nome:'Score de fraude',proc:'Fraude e exceções',dAuto:0,dTempo:15,dErr:3,custo:35000,on:true},
+  {nome:'Pagamento em dinheiro automatizado',proc:'Pagamento em dinheiro (acordo em colisão e sinistros sem casco)',dAuto:25,dTempo:0,dErr:0,custo:28000,on:true}
  ]}};
 
 let S=load()||EXEMPLO();
@@ -193,6 +209,30 @@ function calc(S){
  const baseEst=laborRs?procs.filter(x=>x.p.fonte==='estimativa').reduce((a,x)=>a+x.rs,0)/laborRs:0;
  return {nucleos:Object.values(nuc),procs,H0,H3,bruto,adj,laborRs,sysDelta,alav,mensal,pts,payback,roi:inv?(cum/inv)*100:null,cum,
   fte:adj/(+g.horasFTE||160),H,inv,baseEst,reducao:H0?bruto/H0*100:0};
+}
+
+/* ---------- simulador de features ---------- */
+function applyF(p,f){
+ const q=JSON.parse(JSON.stringify(p));
+ q.nov.auto=Math.min(100,q.nov.auto+(+f.dAuto||0));
+ q.nov.err=Math.max(0,q.nov.err-(+f.dErr||0));
+ const k=1-(+f.dTempo||0)/100;
+ if(q.cli&&q.cli.on&&q.cli.seg>0&&q.cli.n>0)q.cli.n*=k;else q.nov.t*=k;
+ return q;
+}
+function featCalc(S){
+ const base=calc(S),feats=S.feats||[];
+ const rows=feats.map(f=>{
+  const i=S.procs.findIndex(p=>p.nome===f.proc);
+  if(i<0)return {f,miss:true,inc:0,pb:null};
+  const inc=calc({g:S.g,procs:S.procs.map((p,j)=>j===i?applyF(p,f):p)}).laborRs-base.laborRs;
+  return {f,inc,pb:inc>0&&f.custo>0?f.custo/inc:null};
+ });
+ let procs=S.procs;
+ feats.filter(f=>f.on).forEach(f=>{procs=procs.map(p=>p.nome===f.proc?applyF(p,f):p)});
+ const comb=calc({g:S.g,procs}).laborRs-base.laborRs;
+ const custo=feats.filter(f=>f.on).reduce((a,f)=>a+(+f.custo||0),0);
+ return {rows,comb,custo,base};
 }
 
 /* ---------- inputs ---------- */
@@ -240,6 +280,34 @@ function renderProcs(){
  </div>`).join('')||'<p class="hint">Nenhum processo. Adicione um para começar.</p>';
 }
 
+function renderFeats(){
+ const opts=S.procs.map(p=>p.nome);
+ $('#feats').innerHTML=(S.feats||[]).map((f,i)=>`<div class="proc feat" data-i="${i}">
+  <div class="head">
+   <label>Feature<input data-f="nome" value="${esc(f.nome)}"></label>
+   <label>Processo afetado<select data-f="proc">${opts.map(o=>`<option ${o===f.proc?'selected':''}>${esc(o)}</option>`).join('')}${opts.includes(f.proc)?'':`<option selected>${esc(f.proc)}</option>`}</select></label>
+   <label style="flex:0 0 auto;display:flex;gap:5px;align-items:center;font-weight:400;padding-bottom:9px"><input type="checkbox" style="width:auto;margin:0" data-f="on" ${f.on?'checked':''}> Ativa</label>
+   <button class="noprint x" data-fdel title="Remover">✕</button>
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+   ${['dAuto|+ pp de itens sem toque','dTempo|− % de minutos por item','dErr|− pp de retrabalho','custo|Custo único da feature (R$)'].map(x=>{const[k,l]=x.split('|');return `<label>${l}<input type="number" step="any" min="0" data-f="${k}" value="${+f[k]||0}"></label>`}).join('')}
+  </div>
+  <div data-fr class="hint" style="margin:8px 0 0"></div>
+ </div>`).join('')||'<p class="hint">Nenhuma feature. Adicione uma para simular.</p>';
+}
+function renderFeatRes(){
+ const F=featCalc(S);
+ document.querySelectorAll('.feat').forEach((el,i)=>{const r=F.rows[i],d=el.querySelector('[data-fr]');if(!r||!d)return;
+  d.innerHTML=r.miss?'⚠ Processo não encontrado: escolha um processo na lista.':`Ganho incremental: <b>${brl(r.inc)}/mês</b> (${brl(r.inc*12)}/ano) · ${r.pb!==null?'payback da feature: <b>'+num(r.pb,1)+' meses</b>':'sem retorno com os efeitos informados'}`;});
+ const rk=F.rows.filter(r=>!r.miss).map(r=>({l:r.f.nome+(r.f.on?'':' (inativa)'),v:r.inc,c:r.f.on?'var(--pri)':'var(--mut)'})).sort((a,b)=>b.v-a.v);
+ const baseAnual=F.base.mensal*12;
+ $('#featRes').innerHTML=rk.length?`<h3>Ranking por ganho incremental (R$/mês)</h3>${bars(rk,brl)}
+  <div class="kpis" style="margin-top:12px"><div class="kpi hl"><span>Ganho adicional das features ativas</span><b>${brl(F.comb*12)}/ano</b><span>${brl(F.comb)}/mês · efeito combinado</span></div>
+  <div class="kpi"><span>Custo total das features ativas</span><b>${brl(F.custo)}</b><span>${F.comb>0?'payback simples: '+num(F.custo/F.comb,1)+' meses':'—'}</span></div>
+  <div class="kpi"><span>Ganho anual total com features</span><b>${brl(baseAnual+F.comb*12)}</b><span>vs. ${brl(baseAnual)} sem as features</span></div></div>
+  <p class="hint" style="margin-top:8px">O efeito combinado não é a soma do ranking: features no mesmo processo se sobrepõem. Payback simples = custo ÷ ganho mensal em regime, sem rampa.</p>`:'';
+}
+
 /* ---------- resultados ---------- */
 function bars(items,fmt){
  const mx=Math.max(1,...items.map(i=>Math.abs(i.v)));
@@ -257,7 +325,7 @@ function curvaSVG(pts,payback){
  return `<svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Fluxo acumulado">${ticks}<line x1="${pl}" x2="${W-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--mut)" stroke-dasharray="4 3"/><path d="${path}" fill="none" stroke="var(--pri)" stroke-width="2.5"/>${pb_}${mt}</svg>`;
 }
 function updateChecks(R){
- document.querySelectorAll('.proc').forEach((el,i)=>{const x=R.procs[i],c=x.p.cli,d=el.querySelector('[data-chk]');if(!d)return;
+ document.querySelectorAll('#procs .proc').forEach((el,i)=>{const x=R.procs[i],c=x.p.cli,d=el.querySelector('[data-chk]');if(!d)return;
   let m='Cliques medem esforço, não tempo: informe os segundos por clique medidos em amostra.';
   if(c.l>0&&c.n>0&&!cliOn(x.p)){
    const a=x.p.leg.t*60/c.l,b=x.p.nov.t*60/c.n;
@@ -266,7 +334,7 @@ function updateChecks(R){
   d.textContent=m;d.style.color=m.includes('⚠')?'var(--warn)':'';});
 }
 function renderRes(){
- const R=calc(S);updateChecks(R);
+ const R=calc(S);updateChecks(R);renderFeatRes();
  $('#kpis').innerHTML=[
   ['Ganho mensal líquido (regime)',brl(R.mensal),1,'mão de obra + Δ sistema'],
   ['Ganho anual',brl(R.mensal*12),1,''],
@@ -316,8 +384,12 @@ function setPath(o,path,v){const ks=path.split('.');let t=o;ks.slice(0,-1).forEa
 document.addEventListener('change',e=>{if(e.target.dataset.k==='nucleo'){renderProcs();renderRes()}});
 document.addEventListener('input',e=>{
  const el=e.target;
+ if(el.dataset.f){const f=S.feats[el.closest('.feat').dataset.i];
+  f[el.dataset.f]=el.type==='checkbox'?el.checked:el.type==='number'?(parseFloat(el.value)||0):el.value;
+  save();renderFeatRes();return}
  if(el.dataset.g){S.g[el.dataset.g]=el.type==='number'?(parseFloat(el.value)||0):el.value}
  else if(el.dataset.k){const i=el.closest('.proc').dataset.i;
+  if(el.dataset.k==='nome'){const old=S.procs[i].nome;S.feats.forEach(f=>{if(f.proc===old)f.proc=el.value});setTimeout(renderFeats,0)}
   setPath(S.procs[i],el.dataset.k,el.type==='checkbox'?el.checked:el.type==='number'?(parseFloat(el.value)||0):el.value);
   if(el.type==='checkbox'){save();renderProcs();renderRes();return}}
  else return;
@@ -330,6 +402,8 @@ $('#procs').addEventListener('click',e=>{
  else S.procs.splice(i+1,0,JSON.parse(JSON.stringify(S.procs[i])));
  save();renderProcs();renderRes();
 });
+$('#addFeat').onclick=()=>{S.feats.push({nome:'Nova feature',proc:(S.procs[0]||{}).nome||'',dAuto:0,dTempo:10,dErr:0,custo:0,on:true});save();renderFeats();renderRes()};
+$('#feats').addEventListener('click',e=>{const b=e.target.closest('[data-fdel]');if(!b)return;S.feats.splice(+b.closest('.feat').dataset.i,1);save();renderFeats();renderRes()});
 $('#add').onclick=()=>{S.procs.push(PROC_PAD());save();renderProcs();renderRes()};
 function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
 $('#json').onclick=()=>download('ganhos-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(S,null,2),'application/json');
@@ -380,7 +454,9 @@ function exportXlsx(){
  const last=R.procs.length+1;
  if(R.procs.length)rows.push(['Total','','','','','','','','','','','','','',{f:`SUM(O2:O${last})`,v:R.H0},{f:`SUM(P2:P${last})`,v:R.H3},{f:`SUM(Q2:Q${last})`,v:R.bruto},{f:`SUM(R2:R${last})`,v:R.adj},{f:`SUM(S2:S${last})`,v:R.laborRs}]);
  const res=[['Indicador','Valor'],['Ganho mensal líquido em regime (R$)',R.mensal],['Ganho anual (R$)',R.mensal*12],['Horas liberadas/mês',R.adj],['FTE equivalentes',R.fte],['Redução de esforço bruta (%)',R.reducao],['Payback (meses)',R.payback===null?'> horizonte':R.payback],['ROI no horizonte (%)',R.roi===null?'':R.roi],['Resultado acumulado no horizonte (R$)',R.cum],[],['Alavanca do ganho (R$/mês)','Valor'],['Automação (sem toque)',R.alav.auto],['Tempo por item',R.alav.tempo],['Menos retrabalho',R.alav.ret],['Δ custo de sistema',R.sysDelta],[],['Fluxo acumulado','R$'],...R.pts.map(p=>['Mês '+p.m,p.cum])];
- const sheets=[['Resumo',res],['Premissas',prem],['Processos',rows]];
+ const FC=featCalc(S);
+ const fsh=[['Feature','Processo','Ativa','+pp sem toque','−% min/item','−pp retrabalho','Custo único (R$)','Ganho incremental (R$/mês)','Payback (meses)'],...FC.rows.map(r=>[r.f.nome,r.f.proc,r.f.on?'sim':'não',+r.f.dAuto||0,+r.f.dTempo||0,+r.f.dErr||0,+r.f.custo||0,r.inc,r.pb===null?'':r.pb]),[],['Efeito combinado das features ativas (R$/mês)',FC.comb],['Custo total das features ativas (R$)',FC.custo]];
+ const sheets=[['Resumo',res],['Premissas',prem],['Processos',rows],['Features',fsh]];
  const files={
   '[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>',
   '_rels/.rels':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
@@ -432,7 +508,7 @@ function exportPptx(){
    {t:'',sz:8},
    {t:`• Diferença de custo de sistema (legado vs. novo): ${brl(R.sysDelta)}/mês. Investimento único: ${brl(R.inv)}.`,sz:18},
    {t:'',sz:8},
-   {t:`• Resultado acumulado em ${R.H} meses: ${brl(R.cum)}.`,sz:18,b:1}])+foot(2)));
+   {t:`• Resultado acumulado em ${R.H} meses: ${brl(R.cum)}.`,sz:18,b:1}])+foot(slides.length+1)));
  /* 3 onde está o ganho */
  const A=R.alav,al=[{l:'Automação (sem toque)',v:A.auto,c:C.pri},{l:'Menor tempo por item',v:A.tempo,c:C.c2},{l:'Menos retrabalho',v:A.ret,c:C.c3},{l:'Δ custo de sistema',v:R.sysDelta,c:R.sysDelta<0?C.bad:C.mut}];
  const topA=[...al.slice(0,3)].sort((a,b)=>b.v-a.v)[0],totA=A.auto+A.tempo+A.ret||1;
@@ -440,19 +516,24 @@ function exportPptx(){
  slides.push(mk(3,frame(3,`${topA.l} concentra ${num(topA.v/totA*100,0)}% do ganho de mão de obra`)+
   txt(60,150,560,28,[{t:'Por alavanca (R$/mês)',sz:16,b:1,c:C.mut}])+hbars(60,185,560,al,brl)+
   txt(660,150,560,28,[{t:'Por processo (R$/mês)',sz:16,b:1,c:C.mut}])+hbars(660,185,560,pr,brl)+
-  txt(60,520,1160,120,[{t:'Cada real de ganho vem de uma causa mensurável: mais itens resolvidos sem intervenção humana, menos minutos por item ou menos retrabalho. Se nenhuma dessas alavancas se mover, o ganho não existe.',sz:15,c:C.mut}])+foot(3)));
+  txt(60,520,1160,120,[{t:'Cada real de ganho vem de uma causa mensurável: mais itens resolvidos sem intervenção humana, menos minutos por item ou menos retrabalho. Se nenhuma dessas alavancas se mover, o ganho não existe.',sz:15,c:C.mut}])+foot(slides.length+1)));
  /* 4 núcleos */
  const nu=[...R.nucleos].sort((a,b)=>b.rs-a.rs).map(q=>({l:q.k,v:q.rs,c:C.c2}));
  slides.push(mk(4,frame(4,R.nucleos.length>1?`Ganho por núcleo: ${nu[0].l} lidera com ${brl(nu[0].v)}/mês`:'Ganho por núcleo')+
   hbars(60,170,1000,nu,brl,56)+
-  R.nucleos.map((q,i)=>txt(60,170+nu.length*56+20+i*34,1160,32,[{t:`${q.k}: ${q.n} processos · ${num(q.H0,0)} h → ${num(q.H3,0)} h por mês (bruto) · ${num(q.adj,0)} h defensáveis`,sz:14,c:C.mut}])).join('')+foot(4)));
+  R.nucleos.map((q,i)=>txt(60,170+nu.length*56+20+i*34,1160,32,[{t:`${q.k}: ${q.n} processos · ${num(q.H0,0)} h → ${num(q.H3,0)} h por mês (bruto) · ${num(q.adj,0)} h defensáveis`,sz:14,c:C.mut}])).join('')+foot(slides.length+1)));
  /* 5 evidências */
  const estPct=R.baseEst*100;
  const hdr=['Processo','Como foi medido','Bruto (h)','Defensável (h)','R$/mês'],cx=[60,330,720,860,1010],cw=[260,380,130,140,140];
  const tr=R.procs.slice(0,9).map((x,i)=>{const y=210+i*40;return [x.p.nome,FONTES[x.p.fonte].n+(x.p.amostra?' — '+x.p.amostra:''),num(x.bruto,0),num(x.adj,0),brl(x.rs)].map((c,j)=>txt(cx[j],y,cw[j],38,[{t:c,sz:j===1?12:14,al:j>1?'r':'l'}],{anchor:'ctr'})).join('')+sh({x:60,y:y+39,w:1090,h:1,fill:C.line})}).join('');
  slides.push(mk(5,frame(5,estPct>40?`${num(estPct,0)}% do ganho ainda depende de estimativas — plano de validação necessário`:'O ganho está sustentado por medições, não por estimativas')+
   hdr.map((h,j)=>txt(cx[j],170,cw[j],36,[{t:h,sz:13,b:1,c:C.mut,al:j>1?'r':'l'}],{anchor:'ctr'})).join('')+sh({x:60,y:206,w:1090,h:2,fill:C.ink})+tr+
-  txt(60,600,1160,60,[{t:`Ganho bruto ${num(R.bruto,0)} h → defensável ${num(R.adj,0)} h/mês após fator de confiança (estimativa 60%, amostra 85%, logs 100%) e ${g.adocao}% de realização.`,sz:14,c:C.mut}])+foot(5)));
+  txt(60,600,1160,60,[{t:`Ganho bruto ${num(R.bruto,0)} h → defensável ${num(R.adj,0)} h/mês após fator de confiança (estimativa 60%, amostra 85%, logs 100%) e ${g.adocao}% de realização.`,sz:14,c:C.mut}])+foot(slides.length+1)));
+ /* features */
+ const FC=featCalc(S),fr=FC.rows.filter(r=>!r.miss&&r.f.on&&r.inc>0).sort((a,b)=>b.inc-a.inc).slice(0,8);
+ if(fr.length)slides.push(mk(0,frame(0,`Próximas features podem somar ${brl(FC.comb*12)} por ano ao caso de negócio`)+
+  hbars(60,160,1100,fr.map(r=>({l:r.f.nome,v:r.inc,c:C.c3})),brl,52)+
+  txt(60,160+fr.length*52+14,1160,60,[{t:`Efeito combinado das features ativas: ${brl(FC.comb)}/mês, com custo total de ${brl(FC.custo)}${FC.comb>0?` (payback simples de ${num(FC.custo/FC.comb,1)} meses)`:''}. Features no mesmo processo se sobrepõem; os valores individuais não somam o total.`,sz:14,c:C.mut}])+foot(slides.length+1)));
  /* 5 curva */
  const cx0=120,cy0=170,cw0=1060,ch0=410,ys=R.pts.map(q=>q.cum),mn=Math.min(0,...ys),mx=Math.max(0,...ys),rg=(mx-mn)||1,mM=R.pts[R.pts.length-1].m;
  const px=m=>m/mM*cw0,py=v=>(1-(v-mn)/rg)*ch0;
@@ -462,14 +543,14 @@ function exportPptx(){
   sh({x:cx0,y:cy0+py(0),w:cw0,h:2,fill:C.mut})+
   sh({x:cx0,y:cy0,w:cw0,h:ch0,path:R.pts.map(q=>[px(q.m),py(q.cum)])})+pbm+
   [0,Math.round(mM/2),mM].map(m=>txt(cx0+px(m)-50,cy0+ch0+6,100,26,[{t:'mês '+m,sz:12,c:C.mut,al:'ctr'}])).join('')+
-  txt(60,620,1160,40,[{t:`Rampa de adoção de ${g.rampa} meses. Resultado acumulado em ${R.H} meses: ${brl(R.cum)}.`,sz:14,c:C.mut}])+foot(6)));
+  txt(60,620,1160,40,[{t:`Rampa de adoção de ${g.rampa} meses. Resultado acumulado em ${R.H} meses: ${brl(R.cum)}.`,sz:14,c:C.mut}])+foot(slides.length+1)));
  /* 6 premissas e próximos passos */
  const bl=(a,sz=15)=>a.map(t=>({t:'• '+t,sz})).flatMap(q=>[q,{t:'',sz:6}]);
  slides.push(mk(7,frame(7,'Premissas, riscos e como vamos comprovar o ganho')+
   txt(60,150,540,30,[{t:'Premissas-chave',sz:18,b:1,c:C.pri}])+
   txt(60,185,540,440,bl([`Custo/hora da equipe: ${brl(+g.custoHora)}`,`Realização do ganho: ${g.adocao}% (capacidade → benefício)`,`Adoção plena em ${g.rampa} meses`,`Custo mensal do sistema: ${brl(+g.sysLeg)} (legado) → ${brl(+g.sysNew)} (novo)`,`Horizonte da análise: ${g.horizonte} meses`,'Horas liberadas só viram caixa com realocação, redução de extras/terceiros ou absorção de volume.']))+
   txt(660,150,560,30,[{t:'Próximos passos',sz:18,b:1,c:C.pri}])+
-  txt(660,185,560,440,bl(['Medir por amostra/log os processos hoje baseados em estimativa.','Acompanhar 30/60/90 dias após o go-live e trocar premissas "novo" por valores reais.','Definir o destino das horas liberadas (realocação, absorção de volume ou redução de custo).','Revisar este caso de negócio com a Diretoria no mês '+Math.min(R.H,Math.max(3,g.rampa+3))+'.']))+foot(7)));
+  txt(660,185,560,440,bl(['Medir por amostra/log os processos hoje baseados em estimativa.','Acompanhar 30/60/90 dias após o go-live e trocar premissas "novo" por valores reais.','Definir o destino das horas liberadas (realocação, absorção de volume ou redução de custo).','Revisar este caso de negócio com a Diretoria no mês '+Math.min(R.H,Math.max(3,g.rampa+3))+'.']))+foot(slides.length+1)));
  const n=slides.length;
  const f={
   '[Content_Types].xml':`${XH}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/><Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/><Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>${slides.map((_,i)=>`<Override PartName="/ppt/slides/slide${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`).join('')}</Types>`,
@@ -485,7 +566,7 @@ function exportPptx(){
  const a=document.createElement('a');a.href=URL.createObjectURL(zip(f,'application/vnd.openxmlformats-officedocument.presentationml.presentation'));a.download='apresentacao-diretoria-'+new Date().toISOString().slice(0,10)+'.pptx';a.click();URL.revokeObjectURL(a.href);
 }
 $('#pptx').onclick=exportPptx;
-function init(){S.procs.forEach(p=>{p.cli=p.cli||{on:false,seg:4,l:0,n:0}});renderGlobais();renderProcs();renderRes()}
+function init(){S.feats=S.feats||[];S.procs.forEach(p=>{p.cli=p.cli||{on:false,seg:4,l:0,n:0}});renderGlobais();renderProcs();renderFeats();renderRes()}
 init();
 </script>
 </body>
