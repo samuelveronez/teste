@@ -95,10 +95,13 @@ details summary{cursor:pointer;font-weight:600}
   <div class="sc" id="tabela"></div>
   <details style="margin-top:12px"><summary>Ver fórmulas e passo a passo por processo</summary><div id="memoria"></div></details>
   <div class="bar noprint">
-    <button id="csv">Exportar CSV</button><button id="json">Salvar JSON</button>
-    <button id="load">Carregar JSON</button><button id="print">Imprimir / PDF</button>
+    <button class="p" id="json" title="Backup completo: premissas + processos">Exportar JSON</button>
+    <button id="load" title="Restaura um backup completo">Importar JSON</button>
+    <button id="csv" title="Somente processos, abre no Excel">Exportar CSV</button>
+    <button id="loadcsv" title="Substitui os processos pelos do CSV">Importar CSV</button>
+    <button id="print">Imprimir / PDF</button>
     <button id="exemplo">Restaurar exemplo</button><button class="x" id="limpar">Zerar tudo</button>
-    <input type="file" id="file" accept=".json" hidden>
+    <input type="file" id="file" accept=".json" hidden><input type="file" id="filecsv" accept=".csv" hidden>
   </div>
 </section>
 
@@ -292,7 +295,7 @@ $('#procs').addEventListener('click',e=>{
 });
 $('#add').onclick=()=>{S.procs.push(PROC_PAD());save();renderProcs();renderRes()};
 function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
-$('#json').onclick=()=>download('ganhos.json',JSON.stringify(S,null,2),'application/json');
+$('#json').onclick=()=>download('ganhos-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(S,null,2),'application/json');
 $('#load').onclick=()=>$('#file').click();
 $('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!d.g||!Array.isArray(d.procs))throw 0;S=d;save();init()}catch{alert('Arquivo inválido.')}});e.target.value=''};
 $('#print').onclick=()=>print();
@@ -304,6 +307,17 @@ $('#csv').onclick=()=>{
  R.procs.forEach(x=>{const p=x.p;rows.push([p.nome,p.vol,p.leg.t,p.leg.auto,p.leg.err,p.leg.rw,p.nov.t,p.nov.auto,p.nov.err,p.nov.rw,x.H0.toFixed(2),x.H3.toFixed(2),x.bruto.toFixed(2),FONTES[p.fonte].n,p.amostra,x.conf,x.adj.toFixed(2),x.rs.toFixed(2)])});
  download('ganhos.csv','﻿'+rows.map(r=>r.map(q).join(';')).join('\n'),'text/csv');
 };
+$('#loadcsv').onclick=()=>$('#filecsv').click();
+$('#filecsv').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{
+ try{
+  const rows=t.replace(/^\ufeff/,'').split(/\r?\n/).filter(r=>r.trim()).slice(1).map(r=>[...r.matchAll(/"((?:[^"]|"")*)"|([^;]+)/g)].map(m=>m[1]!==undefined?m[1].replace(/""/g,'"'):m[2]));
+  const n=v=>parseFloat(String(v).replace(',','.'))||0;
+  const fk=nome=>Object.keys(FONTES).find(k=>FONTES[k].n===nome)||'estimativa';
+  const procs=rows.map(c=>({nome:c[0],vol:n(c[1]),leg:{t:n(c[2]),auto:n(c[3]),err:n(c[4]),rw:n(c[5])},nov:{t:n(c[6]),auto:n(c[7]),err:n(c[8]),rw:n(c[9])},fonte:fk(c[13]),amostra:c[14]||'',obs:''}));
+  if(!procs.length)throw 0;
+  if(!confirm('Substituir os processos atuais por '+procs.length+' do CSV? (premissas gerais são mantidas)'))return;
+  S.procs=procs;save();init();
+ }catch{alert('CSV inválido. Use um arquivo gerado por "Exportar CSV".')}});e.target.value=''};
 function init(){renderGlobais();renderProcs();renderRes()}
 init();
 </script>
